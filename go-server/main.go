@@ -76,7 +76,7 @@ func main() {
 	// 4. Initialize MQTT Client (pre-populates cache from DB on creation) and Connect
 	mqttClient := mqtt.NewClient(cfg, database)
 	if err := mqttClient.Connect(); err != nil {
-		log.Fatalf("Error initializing MQTT connection: %v", err)
+		log.Printf("Warning: Failed to connect to MQTT broker initially: %v. Reconnection will be attempted in the background.", err)
 	}
 	defer mqttClient.Disconnect()
 

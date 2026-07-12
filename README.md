@@ -197,41 +197,32 @@ SERVER_URL="http://<go-server-ip>:8080" REFRESH_INTERVAL_SECS=300 EPD_DRIVER="ep
 
 ### 4. Running the Client as a Service (systemd)
 
-To run the client continuously in the background as a system service, create a systemd service file:
+A helper script [setup.sh](file:///home/kunal/Projects/epaper-display/python-client/setup.sh) is provided to easily install, configure, or uninstall the systemd service.
 
-1. Create a service file: `sudo nano /etc/systemd/system/epaper-client.service`
-2. Add the following configuration (replace `/path/to/epaper-display` with your actual project path):
-   ```ini
-   [Unit]
-   Description=e-Paper E-Ink Display Client Service
-   After=network.target
+#### Installation & Configuration
+Run the setup script with the `install` argument:
+```bash
+cd python-client
+sudo ./setup.sh install
+```
+This script will:
+* Check and install required Python dependencies.
+* Prompt you for Go server configuration details (URL, refresh interval, display driver, and mock mode).
+* Detect your user profile, generate the `/etc/systemd/system/epaper-client.service` file, reload systemd, and enable and start the service.
 
-   [Service]
-   Type=simple
-   User=pi
-   WorkingDirectory=/path/to/epaper-display/python-client
-   Environment=SERVER_URL=http://<go-server-ip>:8080
-   Environment=REFRESH_INTERVAL_SECS=300
-   Environment=EPD_DRIVER=epd7in5b_V2
-   Environment=MOCK_MODE=false
-   ExecStart=/usr/bin/python3 client.py
-   Restart=on-failure
-   RestartSec=10
+#### Uninstallation & Cleanup
+To stop, disable, and clean up the service, run:
+```bash
+cd python-client
+sudo ./setup.sh uninstall
+```
+This will safely stop the daemon, delete the systemd configuration file, reload systemd, and optionally prompt to clear the cached layout state file.
 
-   [Install]
-   WantedBy=multi-user.target
-   ```
-3. Enable and start the service:
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable epaper-client.service
-   sudo systemctl start epaper-client.service
-   ```
-4. View service status and log output:
-   ```bash
-   sudo systemctl status epaper-client.service
-   sudo journalctl -u epaper-client.service -f
-   ```
+#### Service Management
+You can also manage the service manually using standard systemctl commands:
+* **Check Status**: `sudo systemctl status epaper-client.service`
+* **Live Logs**: `sudo journalctl -u epaper-client.service -f`
+* **Restart**: `sudo systemctl restart epaper-client.service`
 
 ### 5. Automatic Pull & Skip-Refresh Mechanics
 

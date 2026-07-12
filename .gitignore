@@ -1,0 +1,39 @@
+# Compiled Binaries
+eink-server
+go-server/eink-server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Python Virtual Environments & Cache
+venv/
+go-server/venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+python-client/__pycache__/
+python-client/*.pyc
+python-client/.client_state.json
+
+# SQLite Database Files
+*.db
+*.db-journal
+*.db-wal
+go-server/*.db
+go-server/*.db-journal
+go-server/*.db-wal
+
+# Generated Mock Layout Previews
+mock_black_channel.png
+mock_red_channel.png
+python-client/mock_black_channel.png
+python-client/mock_red_channel.png
+
+# Downloaded Font Assets (Auto-downloaded by Go server on runtime)
+go-server/assets/fonts/*.ttf
+go-server/assets/fonts/*.otf

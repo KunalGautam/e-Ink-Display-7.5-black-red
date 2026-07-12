@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  eink-server:
+    build:
+      context: ./go-server
+      dockerfile: Dockerfile
+    container_name: epaper-layout-server
+    environment:
+      - DATA_DIR=/app/data
+    ports:
+      - "8080:8080"
+    volumes:
+      - epaper-data:/app/data
+      # Optional: bind a local configuration file for initialization
+      # - ./go-server/config.yaml:/app/config.yaml
+    restart: always
+
+volumes:
+  epaper-data:

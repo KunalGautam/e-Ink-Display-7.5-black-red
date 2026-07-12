@@ -1,0 +1,34 @@
+# E-Ink Display System Configuration Example
+
+# HTTP Server Port
+port: "8080"
+
+# Display Resolution (in pixels)
+width: 800
+height: 480
+
+# Timezone location (used for parsing Google Calendar and timestamp formatting)
+# Examples: "Asia/Kolkata", "America/New_York", "Europe/London"
+# Default is "Local" (system timezone)
+timezone: "Asia/Kolkata"
+
+# Google Calendar Secret iCal Address (optional)
+# Find this in your Google Calendar Settings -> Integrate Calendar -> Secret address in iCal format
+# Leave empty if you only want to use MQTT for calendar events
+ical_url: "https://calendar.google.com/calendar/ical/your_private_ical_feed/basic.ics"
+
+# MQTT Broker Connection Configuration
+# Supports tcp://, ssl://, or ws:// schemes
+mqtt_broker: "tcp://localhost:1883"
+
+# MQTT Client ID to register with the broker
+mqtt_client_id: "epaper-display-server"
+
+# MQTT Broker Authentication (optional)
+mqtt_username: ""
+mqtt_password: ""
+
+# MQTT Subscription Topics
+notes_topic: "home/eink/notes"
+emails_topic: "home/eink/emails"
+calendar_topic: "home/eink/calendar"

@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>e-Paper Dashboard Settings</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f111a;
+            --card-bg: rgba(22, 28, 45, 0.4);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-color: #e2e8f0;
+            --text-muted: #94a3b8;
+            --accent-color: #ef4444;
+            --accent-hover: #dc2626;
+            --success-color: #10b981;
+            --input-bg: rgba(15, 17, 26, 0.6);
+            --font-family: 'Outfit', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(239, 68, 68, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(22, 28, 45, 0.8) 0px, transparent 50%);
+            color: var(--text-color);
+            font-family: var(--font-family);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        header {
+            padding: 2rem 4rem 1rem 4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--card-border);
+            background: rgba(15, 17, 26, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        .logo-section h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-section h1 span {
+            color: var(--accent-color);
+        }
+
+        .logo-section p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            font-family: var(--font-family);
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 0.6rem 1.4rem;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid var(--card-border);
+            color: var(--text-color);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--text-muted);
+        }
+
+        .btn-danger {
+            background-color: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #f87171;
+        }
+
+        .btn-danger:hover {
+            background-color: var(--accent-color);
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+            transform: translateY(-1px);
+        }
+
+        main {
+            flex: 1;
+            padding: 2.5rem 4rem;
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 2.5rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        @media (max-width: 1100px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 2rem;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 0.8rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title span {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preview-pane {
+            width: 100%;
+            aspect-ratio: 800/480;
+            background-color: #ffffff;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+        }
+
+        .preview-img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            image-rendering: pixelated;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.2rem;
+        }
+
+        @media (max-width: 600px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .form-group-full {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input, select {
+            width: 100%;
+            background-color: var(--input-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            color: var(--text-color);
+            font-family: var(--font-family);
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.2s ease-in-out;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--accent-color);
+            background-color: rgba(22, 28, 45, 0.8);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+        }
+
+        .input-helper {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .settings-actions {
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: rgba(22, 28, 45, 0.95);
+            border: 1px solid var(--card-border);
+            border-left: 4px solid var(--accent-color);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transform: translateY(20px);
+            opacity: 0;
+            animation: slideIn 0.3s forwards;
+            backdrop-filter: blur(10px);
+            min-width: 300px;
+        }
+
+        .toast-success {
+            border-left-color: var(--success-color);
+        }
+
+        @keyframes slideIn {
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .toast-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 2px;
+        }
+
+        .toast-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        footer {
+            padding: 1.5rem 4rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--card-border);
+            background: rgba(15, 17, 26, 0.8);
+        }
+
+        /* Help tip */
+        .help-alert {
+            background-color: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .help-alert strong {
+            color: var(--text-color);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-section">
+            <h1>e-Paper <span>Dashboard</span> Settings</h1>
+            <p>System Admin Portal</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-secondary" onclick="refreshPreview()">
+                🔄 Refresh Preview
+            </button>
+            <button class="btn btn-danger" onclick="restartServer()">
+                ⚠️ Restart Server
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Left Column: Preview Pane -->
+        <div class="card">
+            <div class="card-title">
+                <span>🖥️ Live Layout Preview</span>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">800x480 PNG Output</span>
+            </div>
+            
+            <div class="preview-pane">
+                <img id="previewImage" src="/image" alt="Layout Render Preview" class="preview-img">
+            </div>
+
+            <div class="help-alert">
+                <strong>💡 Quick Tip on Applying Configuration</strong>
+                <p>After saving settings below, the configuration will be safely committed to the SQLite database file. To bind to new MQTT topics or reload connection parameters, click the <strong>Restart Server</strong> button in the top right.</p>
+            </div>
+        </div>
+
+        <!-- Right Column: Settings Form -->
+        <div class="card">
+            <div class="card-title">
+                <span>⚙️ Configuration Settings</span>
+            </div>
+
+            <form id="settingsForm" onsubmit="saveSettings(event)">
+                <div class="form-grid">
+                    <!-- MQTT Connection Settings -->
+                    <h3 class="form-group-full" style="font-size: 1rem; font-weight: 600; margin-top: 0.5rem; color: var(--accent-color);">MQTT Broker Configuration</h3>
+                    
+                    <div class="form-group form-group-full">
+                        <label for="mqtt_broker">Broker Endpoint</label>
+                        <input type="text" id="mqtt_broker" name="mqtt_broker" required placeholder="tcp://localhost:1883">
+                        <div class="input-helper">Use tcp:// for insecure connections, ssl:// or tls:// for secure broker endpoints.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="mqtt_client_id">Client ID</label>
+                        <input type="text" id="mqtt_client_id" name="mqtt_client_id" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="mqtt_username">Username (Optional)</label>
+                        <input type="text" id="mqtt_username" name="mqtt_username">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="mqtt_password">Password (Optional)</label>
+                        <input type="password" id="mqtt_password" name="mqtt_password">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes_topic">Notes Topic</label>
+                        <input type="text" id="notes_topic" name="notes_topic" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="emails_topic">Emails Topic</label>
+                        <input type="text" id="emails_topic" name="emails_topic" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="calendar_topic">Calendar Topic</label>
+                        <input type="text" id="calendar_topic" name="calendar_topic" required>
+                    </div>
+
+                    <!-- System & Display Settings -->
+                    <h3 class="form-group-full" style="font-size: 1rem; font-weight: 600; margin-top: 1.5rem; color: var(--accent-color);">System & Display Settings</h3>
+
+                    <div class="form-group">
+                        <label for="width">Display Width (px)</label>
+                        <input type="number" id="width" name="width" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="height">Display Height (px)</label>
+                        <input type="number" id="height" name="height" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="port">Web Server Port</label>
+                        <input type="text" id="port" name="port" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="timezone">Application Timezone</label>
+                        <input type="text" id="timezone" name="timezone" required placeholder="Local or Asia/Kolkata">
+                    </div>
+
+                    <div class="form-group form-group-full">
+                        <label for="font_family">Font Family / Language Script</label>
+                        <select id="font_family" name="font_family">
+                            <option value="Poppins">Poppins (Default - Sanskrit/Hindi/Marathi/Latin)</option>
+                            <option value="Roboto">Roboto (Latin/English)</option>
+                            <option value="Noto Sans Bengali">Noto Sans Bengali (Bengali)</option>
+                            <option value="Noto Sans Arabic">Noto Sans Arabic (Arabic/Persian/Urdu)</option>
+                            <option value="Noto Sans Oriya">Noto Sans Oriya (Odia)</option>
+                            <option value="Noto Sans Tirhuta">Noto Sans Tirhuta (Maithili/Tirhuta)</option>
+                            <option value="Noto Sans Kannada">Noto Sans Kannada (Kannada)</option>
+                            <option value="Noto Sans Gurmukhi">Noto Sans Gurmukhi (Punjabi/Gurmukhi)</option>
+                            <option value="Noto Sans Gujarati">Noto Sans Gujarati (Gujarati)</option>
+                            <option value="Noto Sans Devanagari">Noto Sans Devanagari (Devanagari/Marathi/Hindi)</option>
+                            <option value="Noto Sans Tamil">Noto Sans Tamil (Tamil)</option>
+                            <option value="Noto Sans Malayalam">Noto Sans Malayalam (Malayalam)</option>
+                            <option value="Noto Sans Sinhala">Noto Sans Sinhala (Sinhalese)</option>
+                            <option value="Noto Sans Hebrew">Noto Sans Hebrew (Hebrew)</option>
+                        </select>
+                        <div class="input-helper">Choose a font family supporting your required language script.</div>
+                    </div>
+
+                    <div class="form-group form-group-full">
+                        <label for="ical_url">Google Calendar Private ICS URL</label>
+                        <input type="text" id="ical_url" name="ical_url" placeholder="https://calendar.google.com/calendar/ical/...">
+                        <div class="input-helper">Provide your private calendar feed link to enable Google Calendar synchronization.</div>
+                    </div>
+
+                    <!-- Security Credentials -->
+                    <h3 class="form-group-full" style="font-size: 1rem; font-weight: 600; margin-top: 1.5rem; color: var(--accent-color);">Admin Access Credentials</h3>
+
+                    <div class="form-group">
+                        <label for="auth_username">Web Admin Username</label>
+                        <input type="text" id="auth_username" name="auth_username" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="auth_password">New Web Admin Password</label>
+                        <input type="password" id="auth_password" name="auth_password" placeholder="Leave empty to keep current">
+                        <div class="input-helper">Minimum 4 characters.</div>
+                    </div>
+                </div>
+
+                <div class="settings-actions">
+                    <button type="submit" class="btn btn-primary">
+                        💾 Save Configuration
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 e-Paper Display Management Server. Built with pure Go and SQLite.</p>
+    </footer>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // Load initial settings on page render
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchSettings();
+        });
+
+        function fetchSettings() {
+            fetch('/api/settings')
+                .then(response => {
+                    if (!response.ok) throw new Error('Unauthorized or connection lost');
+                    return response.json();
+                })
+                .then(data => {
+                    // Populate inputs
+                    for (const key in data) {
+                        const input = document.getElementById(key);
+                        if (input && key !== 'auth_password') {
+                            input.value = data[key];
+                        }
+                    }
+                })
+                .catch(err => {
+                    showToast('Error', err.message, false);
+                });
+        }
+
+        function saveSettings(event) {
+            event.preventDefault();
+            const form = document.getElementById('settingsForm');
+            const formData = new FormData(form);
+            
+            // Build JSON payload
+            const payload = {};
+            formData.forEach((value, key) => {
+                payload[key] = value;
+            });
+
+            // Width/Height need to be integer
+            payload.width = parseInt(payload.width);
+            payload.height = parseInt(payload.height);
+
+            fetch('/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                if (!response.ok) return response.text().then(text => { throw new Error(text) });
+                return response.json();
+            })
+            .then(data => {
+                showToast('Success', 'Configuration saved. Restart server to apply changes!', true);
+                // Clear password input
+                document.getElementById('auth_password').value = '';
+                // Fetch settings again to update displays
+                fetchSettings();
+                // Refresh preview frame
+                setTimeout(refreshPreview, 1000);
+            })
+            .catch(err => {
+                showToast('Save Failed', err.message, false);
+            });
+        }
+
+        function restartServer() {
+            if (confirm('Are you sure you want to shut down the server process?\n\nIf the server is running under Docker or systemd, it will restart automatically with the new settings. Otherwise, you must manually launch it again.')) {
+                fetch('/restart', {
+                    method: 'POST'
+                })
+                .then(response => {
+                    showToast('Server Restarting', 'Shutdown signal sent. Attempting reconnect...', true);
+                    // Poll server to check when it returns online
+                    setTimeout(checkServerStatus, 3000);
+                })
+                .catch(err => {
+                    showToast('Restart Failed', err.message, false);
+                });
+            }
+        }
+
+        function checkServerStatus() {
+            fetch('/health')
+                .then(res => {
+                    if (res.ok) {
+                        showToast('Online', 'Server successfully restarted and is online!', true);
+                        location.reload();
+                    } else {
+                        setTimeout(checkServerStatus, 2000);
+                    }
+                })
+                .catch(() => {
+                    setTimeout(checkServerStatus, 2000);
+                });
+        }
+
+        function refreshPreview() {
+            const img = document.getElementById('previewImage');
+            img.src = '/image?t=' + Date.now();
+        }
+
+        function showToast(title, desc, isSuccess) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast' + (isSuccess ? ' toast-success' : '');
+            
+            toast.innerHTML = `
+                <div style="font-size: 1.5rem;">${isSuccess ? '✅' : '❌'}</div>
+                <div>
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-desc">${desc}</div>
+                </div>
+            `;
+
+            container.appendChild(toast);
+
+            // Remove toast after 4s
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-20px)';
+                toast.style.transition = 'all 0.4s';
+                setTimeout(() => toast.remove(), 400);
+            }, 4000);
+        }
+    </script>
+</body>
+</html>

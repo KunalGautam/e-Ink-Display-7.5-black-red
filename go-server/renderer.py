@@ -143,7 +143,10 @@ def main():
             
             # Format Title (Devanagari supported Poppins Regular)
             wrapped_title_lines = wrap_text(title, font_body_small, divider_x - 30)
-            draw.text((25, current_y + 16), wrapped_title_lines[0], fill=(0, 0, 0), font=font_body_small)
+            title_line = wrapped_title_lines[0]
+            if len(wrapped_title_lines) > 1:
+                title_line += "..."
+            draw.text((25, current_y + 16), title_line, fill=(0, 0, 0), font=font_body_small)
             
             current_y += event_spacing
             
@@ -177,15 +180,18 @@ def main():
             subject = email.get("subject", "")
             
             # Sender (Bold Black)
-            # Truncate if too long
-            if len(sender) > 40:
-                sender = sender[:37] + "..."
-            draw.text((right_col_x + 10, current_y), sender, fill=(0, 0, 0), font=font_body_bold)
+            wrapped_sender = wrap_text(sender, font_body_bold, right_col_width - 20)
+            sender_line = wrapped_sender[0]
+            if len(wrapped_sender) > 1:
+                sender_line += "..."
+            draw.text((right_col_x + 10, current_y), sender_line, fill=(0, 0, 0), font=font_body_bold)
             
-            # Subject (Regular Black - changed from grey to black for solid rendering)
-            if len(subject) > 65:
-                subject = subject[:62] + "..."
-            draw.text((right_col_x + 10, current_y + 17), subject, fill=(0, 0, 0), font=font_body_small)
+            # Subject (Regular Black)
+            wrapped_subject = wrap_text(subject, font_body_small, right_col_width - 20)
+            subject_line = wrapped_subject[0]
+            if len(wrapped_subject) > 1:
+                subject_line += "..."
+            draw.text((right_col_x + 10, current_y + 17), subject_line, fill=(0, 0, 0), font=font_body_small)
             
             current_y += email_spacing
             

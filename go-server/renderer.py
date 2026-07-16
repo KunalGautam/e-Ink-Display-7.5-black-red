@@ -132,7 +132,7 @@ def main():
         events = data.get("calendar", [])
         current_y = schedule_y + 32
         max_events = 2 if height < 400 else 3
-        event_spacing = 38
+        event_spacing = 42
         
         for i, ev in enumerate(events[:max_events]):
             title = ev.get("title", "")
@@ -146,7 +146,7 @@ def main():
             title_line = wrapped_title_lines[0]
             if len(wrapped_title_lines) > 1:
                 title_line += "..."
-            draw.text((25, current_y + 16), title_line, fill=(0, 0, 0), font=font_body_small)
+            draw.text((25, current_y + 20), title_line, fill=(0, 0, 0), font=font_body_small)
             
             current_y += event_spacing
             
@@ -172,7 +172,7 @@ def main():
         
         emails = data.get("emails", [])
         current_y = emails_y + 28
-        email_spacing = 45
+        email_spacing = 50
         max_emails = 3 if height < 400 else 4
         
         for i, email in enumerate(emails[:max_emails]):
@@ -191,7 +191,7 @@ def main():
             subject_line = wrapped_subject[0]
             if len(wrapped_subject) > 1:
                 subject_line += "..."
-            draw.text((right_col_x + 10, current_y + 17), subject_line, fill=(0, 0, 0), font=font_body_small)
+            draw.text((right_col_x + 10, current_y + 21), subject_line, fill=(0, 0, 0), font=font_body_small)
             
             current_y += email_spacing
             

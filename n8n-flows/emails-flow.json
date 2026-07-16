@@ -23,6 +23,7 @@
       "parameters": {
         "broker": "tcp://100.101.102.4:1883",
         "topic": "home/eink/emails",
+        "sendInputData": false,
         "message": "={{ JSON.stringify($json.emails) }}",
         "options": {
           "qos": 1,

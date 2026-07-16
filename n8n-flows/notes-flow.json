@@ -21,7 +21,7 @@
     },
     {
       "parameters": {
-        "broker": "tcp://localhost:1883",
+        "broker": "tcp://100.101.102.4:1883",
         "topic": "home/eink/notes",
         "message": "={{ JSON.stringify($json.notes) }}",
         "options": {

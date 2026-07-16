@@ -11,20 +11,11 @@
     },
     {
       "parameters": {
-        "keepOnlySet": true,
-        "values": {
-          "string": [
-            {
-              "name": "notes_data",
-              "value": "[\"सब्जियां और फल बाजार से खरीदना न भूलें (Groceries)\", \"Water backyard plants at 6:00 PM\", \"Sanskrit learning session at 7:00 AM tomorrow\"]"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "return [\n  {\n    \"notes\": [\n      \"सब्जियां और फल बाजार से खरीदना न भूलें (Groceries)\",\n      \"Water backyard plants at 6:00 PM\",\n      \"Sanskrit learning session at 7:00 AM tomorrow\"\n    ]\n  }\n];"
       },
-      "id": "set-notes-data",
-      "name": "Set Notes Payload",
-      "type": "n8n-nodes-base.set",
+      "id": "code-notes-data",
+      "name": "Format Notes Array",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [320, 240]
     },
@@ -32,7 +23,7 @@
       "parameters": {
         "broker": "tcp://localhost:1883",
         "topic": "home/eink/notes",
-        "message": "={{ $json.notes_data }}",
+        "message": "={{ JSON.stringify($json.notes) }}",
         "options": {
           "qos": 1,
           "retain": true
@@ -50,14 +41,14 @@
       "main": [
         [
           {
-            "node": "Set Notes Payload",
+            "node": "Format Notes Array",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Set Notes Payload": {
+    "Format Notes Array": {
       "main": [
         [
           {

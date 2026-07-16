@@ -11,20 +11,11 @@
     },
     {
       "parameters": {
-        "keepOnlySet": true,
-        "values": {
-          "string": [
-            {
-              "name": "calendar_data",
-              "value": "[{\"title\": \"सब्जी मंडी जाना (All Day Groceries)\", \"time\": \"Today, All Day\"}, {\"title\": \"अमित के साथ बैठक (Meeting with Amit)\", \"time\": \"Tom, 09:00 - 10:00\"}, {\"title\": \"Review layout design details\", \"time\": \"Mon 13, 14:00 - 15:00\"}]"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "return [\n  {\n    \"events\": [\n      {\n        \"title\": \"सब्जी मंडी जाना (All Day Groceries)\",\n        \"time\": \"Today, All Day\"\n      },\n      {\n        \"title\": \"अमित के साथ बैठक (Meeting with Amit)\",\n        \"time\": \"Tom, 09:00 - 10:00\"\n      },\n      {\n        \"title\": \"Review layout design details\",\n        \"time\": \"Mon 13, 14:00 - 15:00\"\n      }\n    ]\n  }\n];"
       },
-      "id": "set-calendar-data",
-      "name": "Set Calendar Payload",
-      "type": "n8n-nodes-base.set",
+      "id": "code-calendar-data",
+      "name": "Format Calendar Array",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [320, 240]
     },
@@ -32,7 +23,7 @@
       "parameters": {
         "broker": "tcp://localhost:1883",
         "topic": "home/eink/calendar",
-        "message": "={{ $json.calendar_data }}",
+        "message": "={{ JSON.stringify($json.events) }}",
         "options": {
           "qos": 1,
           "retain": true
@@ -50,14 +41,14 @@
       "main": [
         [
           {
-            "node": "Set Calendar Payload",
+            "node": "Format Calendar Array",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Set Calendar Payload": {
+    "Format Calendar Array": {
       "main": [
         [
           {

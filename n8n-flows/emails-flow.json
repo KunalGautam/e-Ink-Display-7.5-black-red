@@ -11,20 +11,11 @@
     },
     {
       "parameters": {
-        "keepOnlySet": true,
-        "values": {
-          "string": [
-            {
-              "name": "emails_data",
-              "value": "[{\"sender\": \"अमित शर्मा <amit@example.com>\", \"subject\": \"मीटिंग का समय बदलाव (Meeting reschedule)\"}, {\"sender\": \"GitHub Notifications\", \"subject\": \"[PR #402] Merged: Add layout engine functionality\"}, {\"sender\": \"Tech Newsletter\", \"subject\": \"Top 10 Raspberry Pi hardware projects of 2026\"}]"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "return [\n  {\n    \"emails\": [\n      {\n        \"sender\": \"अमित शर्मा <amit@example.com>\",\n        \"subject\": \"मीटिंग का समय बदलाव (Meeting reschedule)\"\n      },\n      {\n        \"sender\": \"GitHub Notifications\",\n        \"subject\": \"[PR #402] Merged: Add layout engine functionality\"\n      },\n      {\n        \"sender\": \"Tech Newsletter\",\n        \"subject\": \"Top 10 Raspberry Pi hardware projects of 2026\"\n      }\n    ]\n  }\n];"
       },
-      "id": "set-emails-data",
-      "name": "Set Emails Payload",
-      "type": "n8n-nodes-base.set",
+      "id": "code-emails-data",
+      "name": "Format Emails Array",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [320, 240]
     },
@@ -32,7 +23,7 @@
       "parameters": {
         "broker": "tcp://localhost:1883",
         "topic": "home/eink/emails",
-        "message": "={{ $json.emails_data }}",
+        "message": "={{ JSON.stringify($json.emails) }}",
         "options": {
           "qos": 1,
           "retain": true
@@ -50,14 +41,14 @@
       "main": [
         [
           {
-            "node": "Set Emails Payload",
+            "node": "Format Emails Array",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Set Emails Payload": {
+    "Format Emails Array": {
       "main": [
         [
           {

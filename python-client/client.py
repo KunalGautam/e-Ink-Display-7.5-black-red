@@ -95,7 +95,7 @@ def split_channels(img_rgb: Image.Image):
             black_pixels.append(255) # white
             red_pixels.append(0)     # red/active
         # Check for black/grey (any dark or grey pixel is treated as black to capture anti-aliasing edges)
-        elif r < 190 and g < 190 and b < 190:
+        elif r < 140 and g < 140 and b < 140:
             black_pixels.append(0)   # black/active
             red_pixels.append(255) # white
         else:

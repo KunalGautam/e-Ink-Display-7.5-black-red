@@ -55,13 +55,13 @@ def main():
         
         # Setup fonts with sizes (Larger and bolder for high readability on 1-bit displays)
         try:
-            font_title = ImageFont.truetype(bold_font_path, 24)
-            font_header = ImageFont.truetype(bold_font_path, 18)
-            font_weekday = ImageFont.truetype(bold_font_path, 13)
-            font_body_bold = ImageFont.truetype(bold_font_path, 14)
-            font_body_reg = ImageFont.truetype(regular_font_path, 13)
-            font_body_small = ImageFont.truetype(regular_font_path, 12)
-            font_status = ImageFont.truetype(regular_font_path, 10)
+            font_title = ImageFont.truetype(bold_font_path, 26)
+            font_header = ImageFont.truetype(bold_font_path, 20)
+            font_weekday = ImageFont.truetype(bold_font_path, 14)
+            font_body_bold = ImageFont.truetype(bold_font_path, 15)
+            font_body_reg = ImageFont.truetype(regular_font_path, 14)
+            font_body_small = ImageFont.truetype(regular_font_path, 13)
+            font_status = ImageFont.truetype(regular_font_path, 11)
         except IOError as e:
             print(f"Error loading fonts: {e}", file=sys.stderr)
             sys.exit(1)
@@ -106,7 +106,7 @@ def main():
         # Shift weekday to Sunday start: Sunday=0, Monday=1... Saturday=6
         start_weekday = (first_weekday + 1) % 7
         
-        row_height = 24 if height < 400 else 26
+        row_height = 25 if height < 400 else 28
         for d in range(1, num_days + 1):
             cell_idx = d - 1 + start_weekday
             col = cell_idx % 7
@@ -117,7 +117,7 @@ def main():
             
             if d == today:
                 # Highlight today's date in red
-                radius = 12
+                radius = 13
                 draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], fill=(255, 0, 0))
                 draw.text((cx, cy - 1), str(d), fill=(255, 255, 255), font=font_body_bold, anchor="mm")
             else:

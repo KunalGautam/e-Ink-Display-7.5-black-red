@@ -50,7 +50,7 @@ def main():
         output_path = data.get("output_path", "output.png")
         
         # Fonts
-        regular_font_path = data.get("regular_font", "./assets/fonts/Poppins-Regular.ttf")
+        regular_font_path = data.get("regular_font", "./assets/fonts/Poppins-Medium.ttf")
         bold_font_path = data.get("bold_font", "./assets/fonts/Poppins-Bold.ttf")
         
         # Setup fonts with sizes (Larger and bolder for high readability on 1-bit displays)

@@ -44,10 +44,10 @@ install_service() {
     read -rp "Do you want to install physical Waveshare e-Paper hardware drivers? (y/n) [y]: " INSTALL_HW
     INSTALL_HW=${INSTALL_HW:-"y"}
     if [[ $INSTALL_HW =~ ^[Yy]$ ]]; then
-        echo "Installing Waveshare e-Paper library from GitHub..."
-        python3 -m pip install "git+https://github.com/waveshare/e-Paper.git#subdirectory=RaspberryPi_JetsonNano/python" || {
+        echo "Installing Waveshare e-Paper library from PyPI..."
+        python3 -m pip install waveshare-epaper || {
             echo "Attempting with --break-system-packages..."
-            python3 -m pip install "git+https://github.com/waveshare/e-Paper.git#subdirectory=RaspberryPi_JetsonNano/python" --break-system-packages
+            python3 -m pip install waveshare-epaper --break-system-packages
         }
     fi
 

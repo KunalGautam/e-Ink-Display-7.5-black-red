@@ -26,8 +26,8 @@ var FontMap = map[string]FontConfig{
 		BoldFile:   "Poppins-Bold.ttf",
 	},
 	"Roboto": {
-		RegularURL: "https://github.com/google/fonts/raw/main/apache/roboto/static/Roboto-Regular.ttf",
-		BoldURL:    "https://github.com/google/fonts/raw/main/apache/roboto/static/Roboto-Bold.ttf",
+		RegularURL: "https://github.com/google/fonts/raw/main/ofl/roboto/Roboto-Regular.ttf",
+		BoldURL:    "https://github.com/google/fonts/raw/main/ofl/roboto/Roboto-Bold.ttf",
 		RegFile:    "Roboto-Regular.ttf",
 		BoldFile:   "Roboto-Bold.ttf",
 	},

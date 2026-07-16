@@ -88,7 +88,7 @@ func (d *DB) initDefaultSettings() error {
 		"emails_topic":   "home/eink/emails",
 		"calendar_topic": "home/eink/calendar",
 		"auth_username":  "admin",
-		"font_family":     "Noto Sans Devanagari",
+		"font_family":     "Mukta",
 	}
 
 	for k, v := range defaults {

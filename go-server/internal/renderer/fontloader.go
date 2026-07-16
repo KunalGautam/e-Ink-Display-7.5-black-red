@@ -25,6 +25,12 @@ var FontMap = map[string]FontConfig{
 		RegFile:    "Poppins-Medium.ttf",
 		BoldFile:   "Poppins-Bold.ttf",
 	},
+	"Mukta": {
+		RegularURL: "https://github.com/google/fonts/raw/main/ofl/mukta/Mukta-Medium.ttf",
+		BoldURL:    "https://github.com/google/fonts/raw/main/ofl/mukta/Mukta-Bold.ttf",
+		RegFile:    "Mukta-Medium.ttf",
+		BoldFile:   "Mukta-Bold.ttf",
+	},
 	"Roboto": {
 		RegularURL: "https://raw.githubusercontent.com/googlefonts/roboto-2/main/src/hinted/Roboto-Medium.ttf",
 		BoldURL:    "https://raw.githubusercontent.com/googlefonts/roboto-2/main/src/hinted/Roboto-Bold.ttf",

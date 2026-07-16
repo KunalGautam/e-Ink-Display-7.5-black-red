@@ -36,8 +36,8 @@ func TestInitDBAndDefaultSettings(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error getting font_family: %v", err)
 	}
-	if ff != "Noto Sans Devanagari" {
-		t.Errorf("Expected font_family to be Noto Sans Devanagari, got %s", ff)
+	if ff != "Mukta" {
+		t.Errorf("Expected font_family to be Mukta, got %s", ff)
 	}
 
 	user, hash, err := database.GetAuthCredentials()

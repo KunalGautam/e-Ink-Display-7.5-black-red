@@ -68,10 +68,15 @@ install_service() {
     MOCK_MODE=${MOCK_MODE:-"false"}
 
     # Detect current non-root user (who ran sudo) for the service execution
-    RUN_USER=${SUDO_USER:-"pi"}
+    RUN_USER=${SUDO_USER:-$(whoami)}
     if [ "$RUN_USER" = "root" ]; then
-        # Default fallback if run directly as root
-        RUN_USER="pi"
+        if id "dietpi" &>/dev/null; then
+            RUN_USER="dietpi"
+        elif id "pi" &>/dev/null; then
+            RUN_USER="pi"
+        else
+            RUN_USER="root"
+        fi
     fi
     
     echo "Configuring service to run as user: ${RUN_USER}"

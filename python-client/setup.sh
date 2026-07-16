@@ -40,6 +40,17 @@ install_service() {
         python3 -m pip install -r "${SCRIPT_DIR}/requirements.txt" --break-system-packages
     }
 
+    echo ""
+    read -rp "Do you want to install physical Waveshare e-Paper hardware drivers? (y/n) [y]: " INSTALL_HW
+    INSTALL_HW=${INSTALL_HW:-"y"}
+    if [[ $INSTALL_HW =~ ^[Yy]$ ]]; then
+        echo "Installing Waveshare e-Paper library from GitHub..."
+        python3 -m pip install "git+https://github.com/waveshare/e-Paper.git#subdirectory=RaspberryPi_JetsonNano/python" || {
+            echo "Attempting with --break-system-packages..."
+            python3 -m pip install "git+https://github.com/waveshare/e-Paper.git#subdirectory=RaspberryPi_JetsonNano/python" --break-system-packages
+        }
+    fi
+
     # 3. Prompt for configuration or use default
     echo ""
     echo "--- Configure Service Parameters ---"

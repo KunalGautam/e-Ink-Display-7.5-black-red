@@ -36,7 +36,7 @@ func LoadConfig(path string) (*Config, error) {
 		Port:          "8080",
 		Width:         800,
 		Height:        480,
-		FontFamily:    "Poppins",
+		FontFamily:    "Noto Sans Devanagari",
 	}
 
 	// Try reading from file if it exists

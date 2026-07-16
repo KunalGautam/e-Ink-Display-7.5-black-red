@@ -11,7 +11,7 @@ import (
 
 func TestRenderer(t *testing.T) {
 	// 1. Download/Verify fonts are available for test
-	regPath, boldPath, err := EnsureFontsDownloaded("Poppins")
+	regPath, boldPath, err := EnsureFontsDownloaded("Noto Sans Devanagari")
 	if err != nil {
 		t.Fatalf("Failed to ensure fonts are downloaded: %v", err)
 	}

@@ -1,0 +1,77 @@
+{
+  "name": "E-Ink Display - Publish Calendar",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-calendar",
+      "name": "When clicking 'Execute Workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 240]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "calendar_data",
+              "value": "[{\"title\": \"सब्जी मंडी जाना (All Day Groceries)\", \"time\": \"Today, All Day\"}, {\"title\": \"अमित के साथ बैठक (Meeting with Amit)\", \"time\": \"Tom, 09:00 - 10:00\"}, {\"title\": \"Review layout design details\", \"time\": \"Mon 13, 14:00 - 15:00\"}]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-calendar-data",
+      "name": "Set Calendar Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [320, 240]
+    },
+    {
+      "parameters": {
+        "broker": "tcp://localhost:1883",
+        "topic": "home/eink/calendar",
+        "message": "={{ $json.calendar_data }}",
+        "options": {
+          "qos": 1,
+          "retain": true
+        }
+      },
+      "id": "mqtt-publish-calendar",
+      "name": "MQTT Publish Calendar",
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [540, 240]
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute Workflow'": {
+      "main": [
+        [
+          {
+            "node": "Set Calendar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Calendar Payload": {
+      "main": [
+        [
+          {
+            "node": "MQTT Publish Calendar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

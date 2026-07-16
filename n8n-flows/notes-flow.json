@@ -1,0 +1,77 @@
+{
+  "name": "E-Ink Display - Publish Notes",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-notes",
+      "name": "When clicking 'Execute Workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 240]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "notes_data",
+              "value": "[\"सब्जियां और फल बाजार से खरीदना न भूलें (Groceries)\", \"Water backyard plants at 6:00 PM\", \"Sanskrit learning session at 7:00 AM tomorrow\"]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-notes-data",
+      "name": "Set Notes Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [320, 240]
+    },
+    {
+      "parameters": {
+        "broker": "tcp://localhost:1883",
+        "topic": "home/eink/notes",
+        "message": "={{ $json.notes_data }}",
+        "options": {
+          "qos": 1,
+          "retain": true
+        }
+      },
+      "id": "mqtt-publish-notes",
+      "name": "MQTT Publish Notes",
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [540, 240]
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute Workflow'": {
+      "main": [
+        [
+          {
+            "node": "Set Notes Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Notes Payload": {
+      "main": [
+        [
+          {
+            "node": "MQTT Publish Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

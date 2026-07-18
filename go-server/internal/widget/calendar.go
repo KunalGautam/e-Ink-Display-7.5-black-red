@@ -2,8 +2,11 @@ package widget
 
 import (
 	"context"
+	"math"
 	"strconv"
 	"time"
+
+	"golang.org/x/image/font"
 )
 
 type CalendarWidget struct{}
@@ -67,12 +70,33 @@ func (w *CalendarWidget) Render(ctx context.Context, rCtx *RenderContext) error 
 			// Highlight today
 			rCtx.Ctx.SetHexColor(accentColor)
 			circleX := cx
-			if d >= 10 {
-				circleX += 4.5
-			} else {
-				circleX += 2.0
+			circleY := cy
+			radius := 12.0
+
+			if rCtx.FontFace != nil {
+				s := strconv.Itoa(d)
+				bounds, advance := font.BoundString(rCtx.FontFace, s)
+				advanceFloat := float64(advance) / 64.0
+				minX := float64(bounds.Min.X) / 64.0
+				maxX := float64(bounds.Max.X) / 64.0
+				minY := float64(bounds.Min.Y) / 64.0
+				maxY := float64(bounds.Max.Y) / 64.0
+
+				visualWidth := maxX - minX
+				visualHeight := maxY - minY
+
+				// Center circle on visual bounding box
+				circleX = cx - advanceFloat/2.0 + (minX + maxX)/2.0
+				circleY = cy + (minY + maxY)/2.0
+
+				// Calculate radius based on visual bounding box plus padding
+				radius = math.Max(visualWidth, visualHeight)/2.0 + 3.0
+				if radius < 11 {
+					radius = 11
+				}
 			}
-			rCtx.Ctx.DrawCircle(circleX, cy, 12)
+
+			rCtx.Ctx.DrawCircle(circleX, circleY, radius)
 			rCtx.Ctx.Fill()
 
 			rCtx.Ctx.SetHexColor("#FFFFFF")

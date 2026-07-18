@@ -453,7 +453,7 @@
                     <input type="password" id="canvas_mqtt_password" placeholder="Optional">
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Create Canvas</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Create/Update Canvas</button>
             </form>
         </div>
 
@@ -562,6 +562,28 @@
                         <div class="form-group form-group-full">
                             <label for="w_mqtt_topic">MQTT Topic Name</label>
                             <input type="text" id="w_mqtt_topic" placeholder="home/eink/widget_data">
+                        </div>
+
+                        <!-- Container Grid Builder Section -->
+                        <div class="form-group form-group-full" id="container_builder_group" style="display: none; border-top: 1px dashed var(--card-border); padding-top: 1rem; margin-top: 0.5rem;">
+                            <label style="color: var(--accent-color); font-weight: bold; margin-bottom: 0.5rem;">📦 Container Grid Builder</label>
+                            <div class="form-grid" style="margin-bottom: 0.8rem;">
+                                <div class="form-group">
+                                    <label for="c_grid_cols">Grid Columns</label>
+                                    <input type="number" id="c_grid_cols" value="2" min="1" max="4" oninput="buildContainerForm()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="c_grid_rows">Grid Rows</label>
+                                    <input type="number" id="c_grid_rows" value="1" min="1" max="2" oninput="buildContainerForm()">
+                                </div>
+                                <div class="form-group form-group-full">
+                                    <label for="c_grid_gap">Gap (px)</label>
+                                    <input type="number" id="c_grid_gap" value="8" min="0" oninput="updateContainerJSON()">
+                                </div>
+                            </div>
+                            <div id="container_children_slots" style="display: flex; flex-direction: column; gap: 12px; max-height: 350px; overflow-y: auto; padding-right: 4px;">
+                                <!-- Dynamically generated slots -->
+                            </div>
                         </div>
 
                         <div class="form-group form-group-full" id="custom_config_group">
@@ -902,6 +924,7 @@
             document.getElementById('btnDeleteWidget').style.display = 'none';
             document.getElementById('w_border_width').value = 0;
             document.getElementById('w_border_color').value = "";
+            toggleWidgetTypeFields();
         }
 
         function selectWidget(id) {
@@ -937,30 +960,131 @@
             toggleWidgetTypeFields();
         }
 
+        function buildContainerForm(existingChildren = []) {
+            const cols = parseInt(document.getElementById('c_grid_cols').value) || 1;
+            const rows = parseInt(document.getElementById('c_grid_rows').value) || 1;
+            const container = document.getElementById('container_children_slots');
+            container.innerHTML = '';
+
+            const numSlots = Math.min(cols * rows, 8);
+            for (let i = 0; i < numSlots; i++) {
+                const child = existingChildren[i] || {};
+                const div = document.createElement('div');
+                div.style.border = '1px solid var(--card-border)';
+                div.style.padding = '10px';
+                div.style.borderRadius = '6px';
+                div.style.background = 'rgba(255,255,255,0.01)';
+                div.innerHTML = `
+                    <div style="font-weight: bold; font-size: 0.8rem; margin-bottom: 8px; color: var(--text-muted);">Cell Slot #${i+1}</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label>Type</label>
+                            <select class="c_child_type" data-slot="${i}" onchange="updateContainerJSON()">
+                                <option value="calendar" ${child.type === 'calendar' ? 'selected' : ''}>Calendar</option>
+                                <option value="datetime" ${child.type === 'datetime' ? 'selected' : ''}>Date / Time</option>
+                                <option value="text" ${child.type === 'text' ? 'selected' : ''}>Text (Static / MQTT)</option>
+                                <option value="notes" ${child.type === 'notes' ? 'selected' : ''}>Notes List</option>
+                                <option value="emails" ${child.type === 'emails' ? 'selected' : ''}>Emails List</option>
+                                <option value="weather" ${child.type === 'weather' ? 'selected' : ''}>Weather</option>
+                                <option value="image" ${child.type === 'image' ? 'selected' : ''}>Image</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label>Custom Parameter (Format / URL / Text)</label>
+                            <input type="text" class="c_child_config" data-slot="${i}" value='${child.custom_config || ''}' placeholder='e.g. {"format": "15:04"}' oninput="updateContainerJSON()">
+                        </div>
+                        <div class="form-group">
+                            <label>Color FG</label>
+                            <input type="text" class="c_child_fg" data-slot="${i}" value="${child.color_fg || ''}" placeholder="#000000" oninput="updateContainerJSON()">
+                        </div>
+                        <div class="form-group">
+                            <label>Color BG</label>
+                            <input type="text" class="c_child_bg" data-slot="${i}" value="${child.color_bg || ''}" placeholder="Transparent" oninput="updateContainerJSON()">
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            }
+            updateContainerJSON();
+        }
+
+        function updateContainerJSON() {
+            const cols = parseInt(document.getElementById('c_grid_cols').value) || 1;
+            const rows = parseInt(document.getElementById('c_grid_rows').value) || 1;
+            const gap = parseInt(document.getElementById('c_grid_gap').value) || 8;
+            const children = [];
+
+            const types = document.querySelectorAll('.c_child_type');
+            const configs = document.querySelectorAll('.c_child_config');
+            const fgs = document.querySelectorAll('.c_child_fg');
+            const bgs = document.querySelectorAll('.c_child_bg');
+
+            for (let i = 0; i < types.length; i++) {
+                children.push({
+                    type: types[i].value,
+                    custom_config: configs[i].value,
+                    color_fg: fgs[i].value,
+                    color_bg: bgs[i].value
+                });
+            }
+
+            const payload = {
+                grid_cols: cols,
+                grid_rows: rows,
+                gap: gap,
+                children: children
+            };
+
+            document.getElementById('w_custom_config').value = JSON.stringify(payload, null, 2);
+        }
+
         function toggleWidgetTypeFields() {
             const type = document.getElementById('widget_type').value;
             const customGroup = document.getElementById('custom_config_group');
+            const containerGroup = document.getElementById('container_builder_group');
             const topicInput = document.getElementById('w_mqtt_topic');
             const brokerInput = document.getElementById('w_mqtt_broker');
 
-            if (type === 'calendar') {
-                customGroup.style.display = 'none';
+            if (type === 'container') {
+                containerGroup.style.display = 'block';
+                customGroup.style.display = 'block'; // Keep JSON visible but readable
+                
+                // Parse existing JSON if any to build container fields
+                let cols = 2;
+                let rows = 1;
+                let gap = 8;
+                let children = [];
+                try {
+                    const rawJson = document.getElementById('w_custom_config').value;
+                    if (rawJson) {
+                        const parsed = JSON.parse(rawJson);
+                        cols = parsed.grid_cols || 2;
+                        rows = parsed.grid_rows || 1;
+                        gap = parsed.gap || 8;
+                        children = parsed.children || [];
+                    }
+                } catch(e) {}
+                
+                document.getElementById('c_grid_cols').value = cols;
+                document.getElementById('c_grid_rows').value = rows;
+                document.getElementById('c_grid_gap').value = gap;
+                
+                buildContainerForm(children);
                 topicInput.removeAttribute('required');
-            } else if (type === 'datetime') {
-                customGroup.style.display = 'block';
-                document.getElementById('w_custom_config').placeholder = '{"format": "03:04 PM"}';
-                topicInput.removeAttribute('required');
-            } else if (type === 'text') {
-                customGroup.style.display = 'block';
-                document.getElementById('w_custom_config').placeholder = '{"text": "Your static text"}';
-            } else if (type === 'image') {
-                customGroup.style.display = 'block';
-                document.getElementById('w_custom_config').placeholder = '{"url": "https://..."}';
-            } else if (type === 'container') {
-                customGroup.style.display = 'block';
-                document.getElementById('w_custom_config').placeholder = '{\n  "grid_cols": 2,\n  "grid_rows": 1,\n  "gap": 8,\n  "children": [\n    {"type": "datetime", "custom_config": "{\\"format\\":\\"15:04\\"}"},\n    {"type": "weather"}\n  ]\n}';
             } else {
-                customGroup.style.display = 'none';
+                containerGroup.style.display = 'none';
+                customGroup.style.display = 'block';
+                if (type === 'calendar') {
+                    customGroup.style.display = 'none';
+                    topicInput.removeAttribute('required');
+                } else if (type === 'datetime') {
+                    document.getElementById('w_custom_config').placeholder = '{"format": "03:04 PM"}';
+                    topicInput.removeAttribute('required');
+                } else if (type === 'text') {
+                    document.getElementById('w_custom_config').placeholder = '{"text": "Your static text"}';
+                } else if (type === 'image') {
+                    document.getElementById('w_custom_config').placeholder = '{"url": "https://..."}';
+                }
             }
         }
 

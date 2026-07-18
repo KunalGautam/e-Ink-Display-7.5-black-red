@@ -32,7 +32,7 @@ func LoadConfig(path string) (*Config, error) {
 		NotesTopic:    "home/eink/notes",
 		EmailsTopic:   "home/eink/emails",
 		CalendarTopic: "home/eink/calendar",
-		Timezone:      "Local",
+		Timezone:      "Asia/Kolkata",
 		Port:          "8080",
 		Width:         800,
 		Height:        480,

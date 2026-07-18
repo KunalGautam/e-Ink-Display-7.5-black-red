@@ -61,7 +61,6 @@ def main():
             font_body_bold = ImageFont.truetype(bold_font_path, 15)
             font_body_reg = ImageFont.truetype(regular_font_path, 14)
             font_body_small = ImageFont.truetype(regular_font_path, 13)
-            font_status = ImageFont.truetype(regular_font_path, 11)
         except IOError as e:
             print(f"Error loading fonts: {e}", file=sys.stderr)
             sys.exit(1)
@@ -153,11 +152,7 @@ def main():
         if not events:
             draw.text((25, current_y), "No events today.", fill=(0, 0, 0), font=font_body_reg)
             
-        # Draw generation time at the bottom left (Pure black for readability)
-        last_updated_str = data.get("last_updated", "")
-        if not last_updated_str:
-            last_updated_str = now.strftime('%Y-%m-%d %H:%M:%S')
-        draw.text((30, height - 23), f"Updated: {last_updated_str}", fill=(0, 0, 0), font=font_status)
+
         
         # 5. Right Column Dividers
         right_col_x = divider_x + 20

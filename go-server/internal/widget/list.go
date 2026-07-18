@@ -26,30 +26,37 @@ func (w *ListWidget) Render(ctx context.Context, rCtx *RenderContext) error {
 	if w.IsEmailList {
 		var emails []EmailItem
 		if err := json.Unmarshal([]byte(rCtx.LatestData), &emails); err != nil {
-			// Fallback: parse plain string list separated by newlines
 			lines := strings.Split(rCtx.LatestData, "\n")
-			currentY := 15.0
+			lineHeight := rCtx.LineHeight
+			if lineHeight <= 0 {
+				lineHeight = 18.0
+			}
+			currentY := lineHeight - 3.0
 			for _, line := range lines {
 				if currentY > float64(rCtx.Height)-15 {
 					break
 				}
 				rCtx.Ctx.DrawString(line, 5, currentY)
-				currentY += 18
+				currentY += lineHeight
 			}
 			return nil
 		}
 
-		currentY := 18.0
+		lineHeight := rCtx.LineHeight
+		if lineHeight <= 0 {
+			lineHeight = 18.0
+		}
+		currentY := lineHeight
 		for _, email := range emails {
-			if currentY > float64(rCtx.Height)-25 {
+			if currentY > float64(rCtx.Height)-(lineHeight+10) {
 				break
 			}
 			// Draw Sender in bold/accent (mock by shifting or just standard layout color)
 			rCtx.Ctx.DrawString(email.Sender, 5, currentY)
 			
 			// Draw Subject
-			rCtx.Ctx.DrawString(email.Subject, 5, currentY+15)
-			currentY += 38
+			rCtx.Ctx.DrawString(email.Subject, 5, currentY+lineHeight-3.0)
+			currentY += lineHeight*2.0 + 2.0
 		}
 	} else {
 		var notes []string
@@ -58,7 +65,11 @@ func (w *ListWidget) Render(ctx context.Context, rCtx *RenderContext) error {
 			notes = strings.Split(rCtx.LatestData, "\n")
 		}
 
-		currentY := 18.0
+		lineHeight := rCtx.LineHeight
+		if lineHeight <= 0 {
+			lineHeight = 18.0
+		}
+		currentY := lineHeight
 		bulletRadius := 2.5
 		for _, note := range notes {
 			if currentY > float64(rCtx.Height)-15 {
@@ -76,7 +87,7 @@ func (w *ListWidget) Render(ctx context.Context, rCtx *RenderContext) error {
 					break
 				}
 				dc.DrawString(line, 18, currentY)
-				currentY += 18
+				currentY += lineHeight
 			}
 			currentY += 6 // list item margin
 		}

@@ -80,9 +80,12 @@ func (w *CalendarWidget) Render(ctx context.Context, rCtx *RenderContext) error 
 	lastDay := nextMonth.AddDate(0, 0, -1)
 	numDays := lastDay.Day()
 
-	rowHeight := 24.0
-	if float64(rCtx.Height) > 180 {
-		rowHeight = 28.0
+	rowHeight := rCtx.LineHeight
+	if rowHeight <= 0 {
+		rowHeight = 24.0
+		if float64(rCtx.Height) > 180 {
+			rowHeight = 28.0
+		}
 	}
 
 	for d := 1; d <= numDays; d++ {

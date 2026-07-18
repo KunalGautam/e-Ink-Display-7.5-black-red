@@ -151,6 +151,7 @@ func (r *Renderer) RenderCanvas(ctx context.Context, canvasID string) (image.Ima
 			MqttReg:      r.mqttReg,
 			MQTTBroker:   broker,
 			FontURL:      w.FontURL,
+			LineHeight:   w.LineHeight,
 		}
 
 		// Setup defaults colors

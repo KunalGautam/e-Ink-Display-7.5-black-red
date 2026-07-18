@@ -554,6 +554,10 @@
                                 <option value="Bold">Bold</option>
                             </select>
                         </div>
+                        <div class="form-group form-group-full">
+                            <label for="w_line_height">Line / Row Height (px)</label>
+                            <input type="number" id="w_line_height" value="0" step="0.5" placeholder="Default height spacing">
+                        </div>
 
                         <div class="form-group form-group-full">
                             <label for="w_mqtt_broker">MQTT Broker URL</label>
@@ -951,6 +955,7 @@
             document.getElementById('btnDeleteWidget').style.display = 'none';
             document.getElementById('w_border_width').value = 0;
             document.getElementById('w_border_color').value = "";
+            document.getElementById('w_line_height').value = 0;
             toggleWidgetTypeFields();
         }
 
@@ -975,6 +980,7 @@
             document.getElementById('w_font_url').value = w.font_url || '';
             document.getElementById('w_font_size').value = w.font_size;
             document.getElementById('w_font_weight').value = w.font_weight || 'Regular';
+            document.getElementById('w_line_height').value = w.line_height || 0;
             document.getElementById('w_mqtt_broker').value = w.mqtt_broker || '';
             document.getElementById('w_mqtt_topic').value = w.mqtt_topic || '';
             document.getElementById('w_custom_config').value = w.custom_config || '';
@@ -1197,6 +1203,7 @@
             const fontUrl = document.getElementById('w_font_url').value;
             const fontSize = parseFloat(document.getElementById('w_font_size').value);
             const fontWeight = document.getElementById('w_font_weight').value;
+            const lineHeight = parseFloat(document.getElementById('w_line_height').value) || 0;
             const broker = document.getElementById('w_mqtt_broker').value;
             const topic = document.getElementById('w_mqtt_topic').value;
             const custom = document.getElementById('w_custom_config').value;
@@ -1209,6 +1216,7 @@
                 color_fg: fg, color_bg: bg,
                 border_width: borderW, border_color: borderC,
                 font_url: fontUrl, font_size: fontSize, font_weight: fontWeight,
+                line_height: lineHeight,
                 mqtt_broker: broker, mqtt_topic: topic,
                 custom_config: custom
             };

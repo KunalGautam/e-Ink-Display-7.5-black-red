@@ -37,8 +37,11 @@ func (w *TextWidget) Render(ctx context.Context, rCtx *RenderContext) error {
 	lines := WrapText(rCtx.Ctx, displayText, float64(rCtx.Width))
 	
 	// Draw line by line
-	lineHeight := 18.0
-	currentY := 15.0
+	lineHeight := rCtx.LineHeight
+	if lineHeight <= 0 {
+		lineHeight = 18.0
+	}
+	currentY := lineHeight - 3.0
 	for _, line := range lines {
 		if currentY > float64(rCtx.Height) {
 			break

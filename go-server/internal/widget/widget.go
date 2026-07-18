@@ -26,6 +26,7 @@ type RenderContext struct {
 	MqttReg      *mqtt.Registry
 	MQTTBroker   string
 	FontURL      string
+	LineHeight   float64
 }
 
 type Widget interface {

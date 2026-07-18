@@ -15,21 +15,13 @@ Rendering is performed entirely on the Go backend using pure vector drawing libr
         {
           "id": "living_room",
           "device_type": "waveshare_7in5_v2",
-          "timezone": "Asia/Kolkata"
+          "timezone": "Asia/Kolkata",
+          "mqtt_broker": "tcp://localhost:1883",
+          "mqtt_username": "",
+          "mqtt_password": ""
         }
         ```
-        *(Pre-configured types: `waveshare_7in5_v2` (800x480 BWR), `waveshare_7in5_mono`, `waveshare_4in2` (400x300 mono), `waveshare_2in9_bwr`, `waveshare_2in9_mono`)*
-    *   *Custom Dims Payload:*
-        ```json
-        {
-          "id": "custom_screen",
-          "device_type": "custom",
-          "width": 640,
-          "height": 384,
-          "color_mode": "mono",
-          "timezone": "America/New_York"
-        }
-        ```
+        *(Canvas-level MQTT credentials act as fallbacks for any registered widgets that don't specify their own broker details).*
 *   **`GET /api/canvas`**: List all saved canvas profiles.
 *   **`DELETE /api/canvas/{id}`**: Delete a canvas and its widgets.
 
@@ -45,6 +37,10 @@ Rendering is performed entirely on the Go backend using pure vector drawing libr
           "color_fg": "#FF0000", "color_bg": "",
           "font_url": "https://fonts.googleapis.com/css2?family=Outfit:wght@600",
           "font_size": 24,
+          "font_weight": "Regular",
+          "line_height": 28.0,
+          "border_width": 2,
+          "border_color": "#000000",
           "custom_config": "{\"format\": \"15:04\"}"
         }
         ```
@@ -57,7 +53,52 @@ Rendering is performed entirely on the Go backend using pure vector drawing libr
 
 ---
 
-## 2. Docker Server Deployment
+## 2. Advanced Widget Features
+
+### 📦 Nested Grid Containers (`type: "container"`)
+Allows grid division (1-4 columns, 1-2 rows) to bundle and layout up to 8 child widgets inside a single parent widget space.
+*   **Dynamic Custom Fonts & Sizes**: Each cell slot can specify its own Google Font URL, Size, and Weight. If not provided, it falls back to the parent container's font configuration.
+*   **Granular MQTT Topic Binding**: Child widgets in grid cells can bind to unique MQTT topics. The server automatically spins up background subscription listeners using canvas-level MQTT fallback details.
+*   **Container JSON Custom Configuration schema**:
+    ```json
+    {
+      "grid_cols": 2,
+      "grid_rows": 1,
+      "gap": 8,
+      "children": [
+        {
+          "type": "datetime",
+          "custom_config": "{\"format\": \"15:04\"}",
+          "color_fg": "#000000",
+          "color_bg": "",
+          "font_url": "",
+          "font_size": 14,
+          "font_weight": "Bold",
+          "mqtt_topic": ""
+        },
+        {
+          "type": "text",
+          "custom_config": "",
+          "color_fg": "#FF0000",
+          "color_bg": "",
+          "font_url": "",
+          "font_size": 12,
+          "font_weight": "Regular",
+          "mqtt_topic": "home/livingroom/temp"
+        }
+      ]
+    }
+    ```
+
+### 📅 Calendar Highlight Customization (`type: "calendar"`)
+Finetune the highlighted "today" date layout to center perfectly on any custom font size or style. Configured inside the calendar's `custom_config` parameter:
+*   `circle_offset_x` / `circle_offset_y`: Slide the vector highlight circle in pixels.
+*   `circle_radius`: Adjust circle size.
+*   `text_offset_x` / `text_offset_y`: Finetune position of white digits within the highlight circle.
+
+---
+
+## 3. Docker Server Deployment
 
 The Go server can be spun up along with an Eclipse Mosquitto MQTT broker using Docker Compose:
 
@@ -78,7 +119,7 @@ The Go server can be spun up along with an Eclipse Mosquitto MQTT broker using D
 
 ---
 
-## 3. Python Client Installation (Raspberry Pi)
+## 4. Python Client Installation (Raspberry Pi)
 
 Each physical Raspberry Pi runs a lightweight client loop pointing to its target canvas profile:
 

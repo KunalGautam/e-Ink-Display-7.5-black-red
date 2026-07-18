@@ -35,6 +35,26 @@ def wrap_text(text, font, max_width):
         
     return lines if lines else [text]
 
+def draw_cloud(draw, cx, cy, size, outline_color=(0, 0, 0), fill_color=(255, 255, 255), stroke_width=3):
+    r1 = size * 0.22
+    r2 = size * 0.28
+    r3 = size * 0.20
+    
+    ox1, oy1 = -size * 0.20, size * 0.08
+    ox2, oy2 = 0, -size * 0.05
+    ox3, oy3 = size * 0.20, size * 0.08
+    
+    sw = stroke_width
+    draw.ellipse([cx + ox1 - r1 - sw, cy + oy1 - r1 - sw, cx + ox1 + r1 + sw, cy + oy1 + r1 + sw], fill=outline_color)
+    draw.ellipse([cx + ox3 - r3 - sw, cy + oy3 - r3 - sw, cx + ox3 + r3 + sw, cy + oy3 + r3 + sw], fill=outline_color)
+    draw.ellipse([cx + ox2 - r2 - sw, cy + oy2 - r2 - sw, cx + ox2 + r2 + sw, cy + oy2 + r2 + sw], fill=outline_color)
+    draw.rectangle([cx + ox1 - sw, cy + oy1 - sw, cx + ox3 + sw, cy + oy3 + r3 + sw], fill=outline_color)
+    
+    draw.ellipse([cx + ox1 - r1, cy + oy1 - r1, cx + ox1 + r1, cy + oy1 + r1], fill=fill_color)
+    draw.ellipse([cx + ox3 - r3, cy + oy3 - r3, cx + ox3 + r3, cy + oy3 + r3], fill=fill_color)
+    draw.ellipse([cx + ox2 - r2, cy + oy2 - r2, cx + ox2 + r2, cy + oy2 + r2], fill=fill_color)
+    draw.rectangle([cx + ox1, cy + oy1, cx + ox3, cy + oy3 + r3], fill=fill_color)
+
 def draw_weather_icon(draw, x, y, size, condition):
     """
     Draws a clean vector weather icon (outline black, accents red)
@@ -47,89 +67,72 @@ def draw_weather_icon(draw, x, y, size, condition):
     if "sun" in cond or "clear" in cond:
         # Sunny
         r = size / 4
-        draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(255, 0, 0), width=2)
-        # Sun rays
-        ray_len = size / 6
+        draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(255, 255, 255), outline=(255, 0, 0), width=3)
+        ray_len = size / 5
         for i in range(8):
             angle = i * (math.pi / 4)
-            x1 = cx + (r + 2) * math.cos(angle)
-            y1 = cy + (r + 2) * math.sin(angle)
-            x2 = cx + (r + 2 + ray_len) * math.cos(angle)
-            y2 = cy + (r + 2 + ray_len) * math.sin(angle)
-            draw.line([x1, y1, x2, y2], fill=(255, 0, 0), width=2)
+            x1 = cx + (r + 3) * math.cos(angle)
+            y1 = cy + (r + 3) * math.sin(angle)
+            x2 = cx + (r + 3 + ray_len) * math.cos(angle)
+            y2 = cy + (r + 3 + ray_len) * math.sin(angle)
+            draw.line([x1, y1, x2, y2], fill=(255, 0, 0), width=3)
             
     elif "cloud" in cond or "overcast" in cond or "mist" in cond or "fog" in cond:
-        # Cloud outline
-        r1 = size / 5
-        draw.ellipse([cx - r1 - 10, cy - r1 + 5, cx - r1 + 10, cy + r1 + 5], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        draw.ellipse([cx + r1 - 10, cy - r1 + 5, cx + r1 + 10, cy + r1 + 5], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        r2 = size / 4
-        draw.ellipse([cx - r2 + 2, cy - r2, cx + r2 + 2, cy + r2], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        # Clear middle section
-        draw.rectangle([cx - size/3, cy + 3, cx + size/3, cy + r1 + 4], fill=(255, 255, 255))
-        draw.line([cx - size/3, cy + r1 + 5, cx + size/3, cy + r1 + 5], fill=(0, 0, 0), width=2)
+        # Cloudy
+        draw_cloud(draw, cx, cy, size, stroke_width=3)
         
     elif "rain" in cond or "shower" in cond or "drizzle" in cond:
-        # Rain Cloud
-        cy_shift = cy - 6
-        r1 = size / 6
-        draw.ellipse([cx - r1 - 8, cy_shift - r1 + 4, cx - r1 + 8, cy_shift + r1 + 4], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        draw.ellipse([cx + r1 - 8, cy_shift - r1 + 4, cx + r1 + 8, cy_shift + r1 + 4], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        r2 = size / 5
-        draw.ellipse([cx - r2 + 2, cy_shift - r2, cx + r2 + 2, cy_shift + r2], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        draw.rectangle([cx - size/3.5, cy_shift + 2, cx + size/3.5, cy_shift + r1 + 3], fill=(255, 255, 255))
-        draw.line([cx - size/3.5, cy_shift + r1 + 4, cx + size/3.5, cy_shift + r1 + 4], fill=(0, 0, 0), width=2)
-        # Drops
-        drop_y = cy_shift + r1 + 8
-        for dx in [-10, 0, 10]:
-            draw.line([cx + dx - 2, drop_y, cx + dx + 1, drop_y + 6], fill=(255, 0, 0), width=2)
+        # Rainy Cloud
+        cy_shift = cy - size * 0.08
+        draw_cloud(draw, cx, cy_shift, size * 0.9, stroke_width=3)
+        # Bold slanted rain drops
+        drop_y = cy_shift + size * 0.20
+        for dx in [-size * 0.15, 0, size * 0.15]:
+            draw.line([cx + dx - 2, drop_y, cx + dx + 1, drop_y + 8], fill=(255, 0, 0), width=3)
             
     elif "thunder" in cond or "storm" in cond:
-        # Thunderstorm
-        cy_shift = cy - 6
-        r1 = size / 6
-        draw.ellipse([cx - r1 - 8, cy_shift - r1 + 4, cx - r1 + 8, cy_shift + r1 + 4], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        draw.ellipse([cx + r1 - 8, cy_shift - r1 + 4, cx + r1 + 8, cy_shift + r1 + 4], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        r2 = size / 5
-        draw.ellipse([cx - r2 + 2, cy_shift - r2, cx + r2 + 2, cy_shift + r2], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        draw.rectangle([cx - size/3.5, cy_shift + 2, cx + size/3.5, cy_shift + r1 + 3], fill=(255, 255, 255))
-        draw.line([cx - size/3.5, cy_shift + r1 + 4, cx + size/3.5, cy_shift + r1 + 4], fill=(0, 0, 0), width=2)
-        # Red zigzag lightning
+        # Thunderstorm Cloud
+        cy_shift = cy - size * 0.08
+        draw_cloud(draw, cx, cy_shift, size * 0.9, stroke_width=3)
+        # Bold red lightning bolt polygon
         lightning = [
-            (cx - 2, cy_shift + r1 + 5),
-            (cx - 8, cy_shift + r1 + 12),
-            (cx, cy_shift + r1 + 12),
-            (cx - 4, cy_shift + r1 + 20)
+            (cx + 2, cy_shift + size * 0.15),
+            (cx - 8, cy_shift + size * 0.28),
+            (cx, cy_shift + size * 0.28),
+            (cx - 4, cy_shift + size * 0.40)
         ]
-        draw.line(lightning, fill=(255, 0, 0), width=2)
+        draw.line(lightning, fill=(255, 0, 0), width=3)
         
     elif "snow" in cond or "ice" in cond or "freeze" in cond:
-        # Snow cloud
-        cy_shift = cy - 6
-        r1 = size / 6
-        draw.ellipse([cx - r1 - 8, cy_shift - r1 + 4, cx - r1 + 8, cy_shift + r1 + 4], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        draw.ellipse([cx + r1 - 8, cy_shift - r1 + 4, cx + r1 + 8, cy_shift + r1 + 4], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        r2 = size / 5
-        draw.ellipse([cx - r2 + 2, cy_shift - r2, cx + r2 + 2, cy_shift + r2], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        draw.rectangle([cx - size/3.5, cy_shift + 2, cx + size/3.5, cy_shift + r1 + 3], fill=(255, 255, 255))
-        draw.line([cx - size/3.5, cy_shift + r1 + 4, cx + size/3.5, cy_shift + r1 + 4], fill=(0, 0, 0), width=2)
-        # Snow dots
-        drop_y = cy_shift + r1 + 8
-        for dx in [-10, 0, 10]:
-            draw.ellipse([cx + dx - 2, drop_y - 2, cx + dx + 2, drop_y + 2], fill=(255, 0, 0))
+        # Snowy Cloud
+        cy_shift = cy - size * 0.08
+        draw_cloud(draw, cx, cy_shift, size * 0.9, stroke_width=3)
+        # Snowy crosses
+        drop_y = cy_shift + size * 0.20
+        for dx in [-size * 0.15, 0, size * 0.15]:
+            fx, fy = cx + dx, drop_y
+            draw.line([fx - 3, fy, fx + 3, fy], fill=(255, 0, 0), width=2)
+            draw.line([fx, fy - 3, fx, fy + 3], fill=(255, 0, 0), width=2)
             
     else:
         # Partly Cloudy (Default fallback)
-        r_sun = size / 5
-        draw.ellipse([cx - r_sun + 8, cy - r_sun - 8, cx + r_sun + 8, cy + r_sun - 8], outline=(255, 0, 0), width=2)
-        
-        r1 = size / 6
-        draw.ellipse([cx - r1 - 8, cy - r1 + 4, cx - r1 + 8, cy + r1 + 4], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        draw.ellipse([cx + r1 - 8, cy - r1 + 4, cx + r1 + 8, cy + r1 + 4], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        r2 = size / 5
-        draw.ellipse([cx - r2 + 2, cy - r2, cx + r2 + 2, cy + r2], fill=(255, 255, 255), outline=(0, 0, 0), width=2)
-        draw.rectangle([cx - size/3.5, cy + 2, cx + size/3.5, cy + r1 + 3], fill=(255, 255, 255))
-        draw.line([cx - size/3.5, cy + r1 + 4, cx + size/3.5, cy + r1 + 4], fill=(0, 0, 0), width=2)
+        # Sun at top-right
+        cx_sun = cx + size * 0.16
+        cy_sun = cy - size * 0.16
+        r = size * 0.18
+        draw.ellipse([cx_sun - r, cy_sun - r, cx_sun + r, cy_sun + r], fill=(255, 255, 255), outline=(255, 0, 0), width=2)
+        # Short rays for peeking sun
+        ray_len = size / 8
+        for i in range(8):
+            angle = i * (math.pi / 4)
+            x1 = cx_sun + (r + 2) * math.cos(angle)
+            y1 = cy_sun + (r + 2) * math.sin(angle)
+            x2 = cx_sun + (r + 2 + ray_len) * math.cos(angle)
+            y2 = cy_sun + (r + 2 + ray_len) * math.sin(angle)
+            draw.line([x1, y1, x2, y2], fill=(255, 0, 0), width=2)
+            
+        # Cloud on top bottom-left
+        draw_cloud(draw, cx - size * 0.08, cy + size * 0.08, size * 0.85, stroke_width=3)
 
 def main():
     try:

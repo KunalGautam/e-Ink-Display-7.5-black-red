@@ -8,6 +8,7 @@ import (
 
 	"github.com/fogleman/gg"
 	"github.com/golang/freetype/truetype"
+	"golang.org/x/image/font"
 
 	"epaper-display/go-server/internal/db"
 	"epaper-display/go-server/internal/fonts"
@@ -68,6 +69,8 @@ func (r *Renderer) RenderCanvas(ctx context.Context, canvasID string) (image.Ima
 			wRenderer = &widget.WeatherWidget{}
 		case "image":
 			wRenderer = &widget.ImageWidget{}
+		case "container":
+			wRenderer = &widget.ContainerWidget{}
 		default:
 			log.Printf("Warning: Unknown widget type: %s", w.Type)
 			continue
@@ -79,6 +82,7 @@ func (r *Renderer) RenderCanvas(ctx context.Context, canvasID string) (image.Ima
 		subDc.Clear()
 
 		// Configure font if URL is provided
+		var face font.Face
 		if w.FontURL != "" {
 			fontFace, err := r.fontCache.LoadFont(w.FontURL)
 			if err == nil && fontFace != nil {
@@ -86,7 +90,7 @@ func (r *Renderer) RenderCanvas(ctx context.Context, canvasID string) (image.Ima
 				if fontSize == 0 {
 					fontSize = 14
 				}
-				face := truetype.NewFace(fontFace, &truetype.Options{
+				face = truetype.NewFace(fontFace, &truetype.Options{
 					Size: fontSize,
 				})
 				subDc.SetFontFace(face)
@@ -114,6 +118,8 @@ func (r *Renderer) RenderCanvas(ctx context.Context, canvasID string) (image.Ima
 			Timezone:     cRec.Timezone,
 			LatestData:   latestData,
 			CustomConfig: w.CustomConfig,
+			FontCache:    r.fontCache,
+			FontFace:     face,
 		}
 
 		// Setup defaults colors
@@ -139,6 +145,22 @@ func (r *Renderer) RenderCanvas(ctx context.Context, canvasID string) (image.Ima
 
 		// Composite widget onto main canvas context
 		dc.DrawImage(subDc.Image(), w.X, w.Y)
+
+		// Draw border if configured
+		if w.BorderWidth > 0 {
+			borderColor := w.BorderColor
+			if borderColor == "" {
+				borderColor = w.ColorFG
+			}
+			if borderColor == "" {
+				borderColor = "#000000"
+			}
+			dc.SetHexColor(borderColor)
+			dc.SetLineWidth(float64(w.BorderWidth))
+			offset := float64(w.BorderWidth) / 2.0
+			dc.DrawRectangle(float64(w.X)+offset, float64(w.Y)+offset, float64(w.Width)-float64(w.BorderWidth), float64(w.Height)-float64(w.BorderWidth))
+			dc.Stroke()
+		}
 	}
 
 	return dc.Image(), nil

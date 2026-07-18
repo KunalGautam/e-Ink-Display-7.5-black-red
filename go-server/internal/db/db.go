@@ -74,6 +74,8 @@ func InitDB(dbPath string) (*DB, error) {
 			font_size REAL,
 			font_weight TEXT,
 			custom_config TEXT,
+			border_width INTEGER DEFAULT 0,
+			border_color TEXT DEFAULT '',
 			FOREIGN KEY(canvas_id) REFERENCES canvases(id) ON DELETE CASCADE
 		);`,
 	}
@@ -84,6 +86,10 @@ func InitDB(dbPath string) (*DB, error) {
 			return nil, fmt.Errorf("failed to execute migration query: %w", err)
 		}
 	}
+
+	// Migrate existing database schemas if columns are missing
+	_, _ = db.Exec("ALTER TABLE widgets ADD COLUMN border_width INTEGER DEFAULT 0")
+	_, _ = db.Exec("ALTER TABLE widgets ADD COLUMN border_color TEXT DEFAULT ''")
 
 	d := &DB{conn: db}
 	if err := d.initDefaultSettings(); err != nil {
@@ -349,6 +355,8 @@ type WidgetRecord struct {
 	FontSize     float64 `json:"font_size"`
 	FontWeight   string  `json:"font_weight"`
 	CustomConfig string  `json:"custom_config"`
+	BorderWidth  int     `json:"border_width"`
+	BorderColor  string  `json:"border_color"`
 }
 
 func (d *DB) SaveCanvas(c CanvasRecord) error {
@@ -401,14 +409,14 @@ func (d *DB) SaveWidget(w WidgetRecord) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	_, err := d.conn.Exec(`INSERT OR REPLACE INTO widgets 
-		(id, canvas_id, type, x, y, width, height, mqtt_topic, mqtt_broker, color_fg, color_bg, font_url, font_size, font_weight, custom_config) 
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		w.ID, w.CanvasID, w.Type, w.X, w.Y, w.Width, w.Height, w.MQTTTopic, w.MQTTBroker, w.ColorFG, w.ColorBG, w.FontURL, w.FontSize, w.FontWeight, w.CustomConfig)
+		(id, canvas_id, type, x, y, width, height, mqtt_topic, mqtt_broker, color_fg, color_bg, font_url, font_size, font_weight, custom_config, border_width, border_color) 
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		w.ID, w.CanvasID, w.Type, w.X, w.Y, w.Width, w.Height, w.MQTTTopic, w.MQTTBroker, w.ColorFG, w.ColorBG, w.FontURL, w.FontSize, w.FontWeight, w.CustomConfig, w.BorderWidth, w.BorderColor)
 	return err
 }
 
 func (d *DB) GetWidgetsForCanvas(canvasID string) ([]WidgetRecord, error) {
-	rows, err := d.conn.Query(`SELECT id, canvas_id, type, x, y, width, height, mqtt_topic, mqtt_broker, color_fg, color_bg, font_url, font_size, font_weight, custom_config 
+	rows, err := d.conn.Query(`SELECT id, canvas_id, type, x, y, width, height, mqtt_topic, mqtt_broker, color_fg, color_bg, font_url, font_size, font_weight, custom_config, border_width, border_color 
 		FROM widgets WHERE canvas_id = ?`, canvasID)
 	if err != nil {
 		return nil, err
@@ -418,7 +426,7 @@ func (d *DB) GetWidgetsForCanvas(canvasID string) ([]WidgetRecord, error) {
 	var list []WidgetRecord
 	for rows.Next() {
 		var w WidgetRecord
-		err := rows.Scan(&w.ID, &w.CanvasID, &w.Type, &w.X, &w.Y, &w.Width, &w.Height, &w.MQTTTopic, &w.MQTTBroker, &w.ColorFG, &w.ColorBG, &w.FontURL, &w.FontSize, &w.FontWeight, &w.CustomConfig)
+		err := rows.Scan(&w.ID, &w.CanvasID, &w.Type, &w.X, &w.Y, &w.Width, &w.Height, &w.MQTTTopic, &w.MQTTBroker, &w.ColorFG, &w.ColorBG, &w.FontURL, &w.FontSize, &w.FontWeight, &w.CustomConfig, &w.BorderWidth, &w.BorderColor)
 		if err != nil {
 			return nil, err
 		}
@@ -428,7 +436,7 @@ func (d *DB) GetWidgetsForCanvas(canvasID string) ([]WidgetRecord, error) {
 }
 
 func (d *DB) GetAllWidgets() ([]WidgetRecord, error) {
-	rows, err := d.conn.Query(`SELECT id, canvas_id, type, x, y, width, height, mqtt_topic, mqtt_broker, color_fg, color_bg, font_url, font_size, font_weight, custom_config 
+	rows, err := d.conn.Query(`SELECT id, canvas_id, type, x, y, width, height, mqtt_topic, mqtt_broker, color_fg, color_bg, font_url, font_size, font_weight, custom_config, border_width, border_color 
 		FROM widgets`)
 	if err != nil {
 		return nil, err
@@ -438,7 +446,7 @@ func (d *DB) GetAllWidgets() ([]WidgetRecord, error) {
 	var list []WidgetRecord
 	for rows.Next() {
 		var w WidgetRecord
-		err := rows.Scan(&w.ID, &w.CanvasID, &w.Type, &w.X, &w.Y, &w.Width, &w.Height, &w.MQTTTopic, &w.MQTTBroker, &w.ColorFG, &w.ColorBG, &w.FontURL, &w.FontSize, &w.FontWeight, &w.CustomConfig)
+		err := rows.Scan(&w.ID, &w.CanvasID, &w.Type, &w.X, &w.Y, &w.Width, &w.Height, &w.MQTTTopic, &w.MQTTBroker, &w.ColorFG, &w.ColorBG, &w.FontURL, &w.FontSize, &w.FontWeight, &w.CustomConfig, &w.BorderWidth, &w.BorderColor)
 		if err != nil {
 			return nil, err
 		}

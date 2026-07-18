@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/fogleman/gg"
+	"golang.org/x/image/font"
+	"epaper-display/go-server/internal/fonts"
 )
 
 type RenderContext struct {
@@ -18,6 +20,8 @@ type RenderContext struct {
 	ColorBG      string
 	LatestData   string // MQTT payload if bound
 	CustomConfig string // JSON parameters
+	FontCache    *fonts.Cache
+	FontFace     font.Face
 }
 
 type Widget interface {

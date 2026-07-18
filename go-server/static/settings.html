@@ -468,6 +468,84 @@
                         <div class="input-helper">Choose a font family supporting your required language script.</div>
                     </div>
 
+                    <!-- Layout & Visibility Settings -->
+                    <h3 class="form-group-full" style="font-size: 1rem; font-weight: 600; margin-top: 1.5rem; color: var(--accent-color);">Layout & Visibility Settings</h3>
+
+                    <div class="form-group form-group-full">
+                        <label for="layout_style">UI Layout Style</label>
+                        <select id="layout_style" name="layout_style">
+                            <option value="default">Default 4-Quadrant (Calendar, Schedule, Inbox, Notes)</option>
+                            <option value="weather_tasks">Weather & Tasks (Left: Weather, Right: Inbox Tasks)</option>
+                            <option value="weather_calendar">Weather & Calendar (Left: Weather/Sensors, Right: Calendar)</option>
+                            <option value="weather_forecast">Weather 7-Day Forecast (Left: Current, Right: 7-Day Table)</option>
+                            <option value="clock_sensors">Clock & Sensors (Clock, Sensors, Weather, Forecast)</option>
+                        </select>
+                        <div class="input-helper">Select the base template style for the e-Paper display layout.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="show_calendar">Show Calendar Panel</label>
+                        <select id="show_calendar" name="show_calendar">
+                            <option value="true">Show</option>
+                            <option value="false">Hide</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="show_schedule">Show Schedule Panel</label>
+                        <select id="show_schedule" name="show_schedule">
+                            <option value="true">Show</option>
+                            <option value="false">Hide</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="show_inbox">Show Inbox Panel</label>
+                        <select id="show_inbox" name="show_inbox">
+                            <option value="true">Show</option>
+                            <option value="false">Hide</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="show_notes">Show Notes Panel</label>
+                        <select id="show_notes" name="show_notes">
+                            <option value="true">Show</option>
+                            <option value="false">Hide</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="show_weather">Show Weather Details</label>
+                        <select id="show_weather" name="show_weather">
+                            <option value="true">Show</option>
+                            <option value="false">Hide</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="show_sensors">Show Smart Home Sensors</label>
+                        <select id="show_sensors" name="show_sensors">
+                            <option value="true">Show</option>
+                            <option value="false">Hide</option>
+                        </select>
+                    </div>
+
+                    <!-- OpenWeatherMap Synchronization -->
+                    <h3 class="form-group-full" style="font-size: 1rem; font-weight: 600; margin-top: 1.5rem; color: var(--accent-color);">OpenWeatherMap Sync Settings</h3>
+
+                    <div class="form-group">
+                        <label for="weather_api_key">OpenWeatherMap API Key (Optional)</label>
+                        <input type="password" id="weather_api_key" name="weather_api_key" placeholder="Enter API Key">
+                        <div class="input-helper">Find your key on openweathermap.org. Leave empty to use MQTT instead.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="weather_city">Weather City Name</label>
+                        <input type="text" id="weather_city" name="weather_city" placeholder="e.g. New Delhi,IN">
+                        <div class="input-helper">Format: City,CountryCode (e.g. New Delhi,IN or New York,US).</div>
+                    </div>
+
                     <div class="form-group form-group-full">
                         <label for="ical_url">Google Calendar Private ICS URL</label>
                         <input type="text" id="ical_url" name="ical_url" placeholder="https://calendar.google.com/calendar/ical/...">
@@ -521,7 +599,7 @@
                     for (const key in data) {
                         const input = document.getElementById(key);
                         if (input && key !== 'auth_password') {
-                            input.value = data[key];
+                            input.value = String(data[key]);
                         }
                     }
                 })
@@ -538,7 +616,9 @@
             // Build JSON payload
             const payload = {};
             formData.forEach((value, key) => {
-                payload[key] = value;
+                if (value === "true") payload[key] = true;
+                else if (value === "false") payload[key] = false;
+                else payload[key] = value;
             });
 
             // Width/Height need to be integer

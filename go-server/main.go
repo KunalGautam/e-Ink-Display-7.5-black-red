@@ -20,6 +20,7 @@ import (
 	"epaper-display/go-server/internal/db"
 	"epaper-display/go-server/internal/mqtt"
 	"epaper-display/go-server/internal/renderer"
+	"epaper-display/go-server/internal/weather"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -38,6 +39,15 @@ type settingsAPIModel struct {
 	Width         int    `json:"width"`
 	Height        int    `json:"height"`
 	FontFamily    string `json:"font_family"`
+	LayoutStyle   string `json:"layout_style"`
+	ShowCalendar  bool   `json:"show_calendar"`
+	ShowSchedule  bool   `json:"show_schedule"`
+	ShowInbox     bool   `json:"show_inbox"`
+	ShowNotes     bool   `json:"show_notes"`
+	ShowWeather   bool   `json:"show_weather"`
+	ShowSensors   bool   `json:"show_sensors"`
+	WeatherAPIKey string `json:"weather_api_key"`
+	WeatherCity   string `json:"weather_city"`
 	AuthUsername  string `json:"auth_username"`
 	AuthPassword  string `json:"auth_password,omitempty"`
 }
@@ -73,14 +83,36 @@ func main() {
 		log.Fatalf("Error downloading/loading fonts: %v", err)
 	}
 
-	// 4. Initialize MQTT Client (pre-populates cache from DB on creation) and Connect
-	mqttClient := mqtt.NewClient(cfg, database)
+	// 4. Initialize Weather Client
+	weatherClient := weather.NewWeatherClient()
+
+	// 5. Initialize MQTT Client (pre-populates cache from DB on creation) and Connect
+	mqttClient := mqtt.NewClient(cfg, database, weatherClient)
 	if err := mqttClient.Connect(); err != nil {
 		log.Printf("Warning: Failed to connect to MQTT broker initially: %v. Reconnection will be attempted in the background.", err)
 	}
 	defer mqttClient.Disconnect()
 
-	// 5. Initialize Google Calendar iCal Client & Sync Loop
+	// 6. Start OpenWeatherMap Sync Loop if key is configured
+	if cfg.WeatherAPIKey != "" {
+		go func() {
+			log.Println("Performing initial OpenWeatherMap fetch...")
+			if err := weatherClient.FetchOpenWeatherMap(cfg.WeatherAPIKey, cfg.WeatherCity); err != nil {
+				log.Printf("OpenWeatherMap fetch error: %v", err)
+			}
+
+			ticker := time.NewTicker(15 * time.Minute)
+			defer ticker.Stop()
+			for range ticker.C {
+				log.Println("Fetching weather from OpenWeatherMap...")
+				if err := weatherClient.FetchOpenWeatherMap(cfg.WeatherAPIKey, cfg.WeatherCity); err != nil {
+					log.Printf("OpenWeatherMap fetch error: %v", err)
+				}
+			}
+		}()
+	}
+
+	// 7. Initialize Google Calendar iCal Client & Sync Loop
 	icalClient := calendar.NewICalClient(cfg)
 	if cfg.ICalURL != "" {
 		go func() {
@@ -161,9 +193,13 @@ func main() {
 				lastUpdated = icalUpdated
 			}
 		}
+		weatherUpdated := weatherClient.GetLastUpdated()
+		if weatherUpdated.After(lastUpdated) {
+			lastUpdated = weatherUpdated
+		}
 		lastUpdatedStr := lastUpdated.Format("2006-01-02 15:04:05")
 
-		img, err := rend.Render(notes, emails, calEvents, lastUpdatedStr)
+		img, err := rend.Render(notes, emails, calEvents, weatherClient.GetWeather(), lastUpdatedStr)
 		if err != nil {
 			log.Printf("Render error: %v", err)
 			http.Error(w, "Failed to render layout", http.StatusInternalServerError)
@@ -192,9 +228,13 @@ func main() {
 				lastUpdated = icalUpdated
 			}
 		}
+		weatherUpdated := weatherClient.GetLastUpdated()
+		if weatherUpdated.After(lastUpdated) {
+			lastUpdated = weatherUpdated
+		}
 		lastUpdatedStr := lastUpdated.Format("2006-01-02 15:04:05")
 
-		img, err := rend.Render(notes, emails, calEvents, lastUpdatedStr)
+		img, err := rend.Render(notes, emails, calEvents, weatherClient.GetWeather(), lastUpdatedStr)
 		if err != nil {
 			log.Printf("Render error: %v", err)
 			http.Error(w, "Failed to render layout", http.StatusInternalServerError)
@@ -223,6 +263,9 @@ func main() {
 	// Basic Auth Protected Settings Portal Page (GET /settings to view page, POST /settings to update)
 	mux.HandleFunc("/settings", basicAuth(database, "Dashboard Admin", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			w.Header().Set("Pragma", "no-cache")
+			w.Header().Set("Expires", "0")
 			http.ServeFile(w, r, "static/settings.html")
 			return
 		}
@@ -265,6 +308,15 @@ func main() {
 			_ = database.SaveSetting("width", strconv.Itoa(model.Width))
 			_ = database.SaveSetting("height", strconv.Itoa(model.Height))
 			_ = database.SaveSetting("font_family", model.FontFamily)
+			_ = database.SaveSetting("layout_style", model.LayoutStyle)
+			_ = database.SaveSetting("show_calendar", strconv.FormatBool(model.ShowCalendar))
+			_ = database.SaveSetting("show_schedule", strconv.FormatBool(model.ShowSchedule))
+			_ = database.SaveSetting("show_inbox", strconv.FormatBool(model.ShowInbox))
+			_ = database.SaveSetting("show_notes", strconv.FormatBool(model.ShowNotes))
+			_ = database.SaveSetting("show_weather", strconv.FormatBool(model.ShowWeather))
+			_ = database.SaveSetting("show_sensors", strconv.FormatBool(model.ShowSensors))
+			_ = database.SaveSetting("weather_api_key", model.WeatherAPIKey)
+			_ = database.SaveSetting("weather_city", model.WeatherCity)
 
 			log.Println("Configuration successfully saved to SQLite database")
 
@@ -298,6 +350,28 @@ func main() {
 		heightStr, _ := database.GetSetting("height")
 		fontFamily, _ := database.GetSetting("font_family")
 
+		layoutStyle, _ := database.GetSetting("layout_style")
+		if layoutStyle == "" {
+			layoutStyle = "default"
+		}
+		showCalStr, _ := database.GetSetting("show_calendar")
+		showCal := showCalStr != "false"
+		showSchStr, _ := database.GetSetting("show_schedule")
+		showSch := showSchStr != "false"
+		showInbStr, _ := database.GetSetting("show_inbox")
+		showInb := showInbStr != "false"
+		showNotStr, _ := database.GetSetting("show_notes")
+		showNot := showNotStr != "false"
+		showWeaStr, _ := database.GetSetting("show_weather")
+		showWea := showWeaStr != "false"
+		showSenStr, _ := database.GetSetting("show_sensors")
+		showSen := showSenStr != "false"
+		weatherKey, _ := database.GetSetting("weather_api_key")
+		weatherCity, _ := database.GetSetting("weather_city")
+		if weatherCity == "" {
+			weatherCity = "New Delhi,IN"
+		}
+
 		width, _ := strconv.Atoi(widthStr)
 		height, _ := strconv.Atoi(heightStr)
 
@@ -315,6 +389,15 @@ func main() {
 			Width:         width,
 			Height:        height,
 			FontFamily:    fontFamily,
+			LayoutStyle:   layoutStyle,
+			ShowCalendar:  showCal,
+			ShowSchedule:  showSch,
+			ShowInbox:     showInb,
+			ShowNotes:     showNot,
+			ShowWeather:   showWea,
+			ShowSensors:   showSen,
+			WeatherAPIKey: weatherKey,
+			WeatherCity:   weatherCity,
 			AuthUsername:  user,
 		}
 
@@ -399,6 +482,15 @@ func loadConfigWithDB(database *db.DB, configPath string) (*config.Config, error
 		_ = database.SaveSetting("width", strconv.Itoa(cfg.Width))
 		_ = database.SaveSetting("height", strconv.Itoa(cfg.Height))
 		_ = database.SaveSetting("font_family", cfg.FontFamily)
+		_ = database.SaveSetting("layout_style", cfg.LayoutStyle)
+		_ = database.SaveSetting("show_calendar", strconv.FormatBool(cfg.ShowCalendar))
+		_ = database.SaveSetting("show_schedule", strconv.FormatBool(cfg.ShowSchedule))
+		_ = database.SaveSetting("show_inbox", strconv.FormatBool(cfg.ShowInbox))
+		_ = database.SaveSetting("show_notes", strconv.FormatBool(cfg.ShowNotes))
+		_ = database.SaveSetting("show_weather", strconv.FormatBool(cfg.ShowWeather))
+		_ = database.SaveSetting("show_sensors", strconv.FormatBool(cfg.ShowSensors))
+		_ = database.SaveSetting("weather_api_key", cfg.WeatherAPIKey)
+		_ = database.SaveSetting("weather_city", cfg.WeatherCity)
 
 		return cfg, nil
 	}
@@ -447,6 +539,45 @@ func loadConfigWithDB(database *db.DB, configPath string) (*config.Config, error
 	}
 	if val, err := database.GetSetting("font_family"); err == nil {
 		cfg.FontFamily = val
+	}
+	cfg.LayoutStyle, _ = database.GetSetting("layout_style")
+	if cfg.LayoutStyle == "" {
+		cfg.LayoutStyle = "default"
+	}
+	if val, err := database.GetSetting("show_calendar"); err == nil && val != "" {
+		cfg.ShowCalendar, _ = strconv.ParseBool(val)
+	} else {
+		cfg.ShowCalendar = true
+	}
+	if val, err := database.GetSetting("show_schedule"); err == nil && val != "" {
+		cfg.ShowSchedule, _ = strconv.ParseBool(val)
+	} else {
+		cfg.ShowSchedule = true
+	}
+	if val, err := database.GetSetting("show_inbox"); err == nil && val != "" {
+		cfg.ShowInbox, _ = strconv.ParseBool(val)
+	} else {
+		cfg.ShowInbox = true
+	}
+	if val, err := database.GetSetting("show_notes"); err == nil && val != "" {
+		cfg.ShowNotes, _ = strconv.ParseBool(val)
+	} else {
+		cfg.ShowNotes = true
+	}
+	if val, err := database.GetSetting("show_weather"); err == nil && val != "" {
+		cfg.ShowWeather, _ = strconv.ParseBool(val)
+	} else {
+		cfg.ShowWeather = true
+	}
+	if val, err := database.GetSetting("show_sensors"); err == nil && val != "" {
+		cfg.ShowSensors, _ = strconv.ParseBool(val)
+	} else {
+		cfg.ShowSensors = true
+	}
+	cfg.WeatherAPIKey, _ = database.GetSetting("weather_api_key")
+	cfg.WeatherCity, _ = database.GetSetting("weather_city")
+	if cfg.WeatherCity == "" {
+		cfg.WeatherCity = "New Delhi,IN"
 	}
 
 	return cfg, nil

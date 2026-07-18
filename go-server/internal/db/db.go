@@ -89,6 +89,15 @@ func (d *DB) initDefaultSettings() error {
 		"calendar_topic": "home/eink/calendar",
 		"auth_username":  "admin",
 		"font_family":     "Mukta",
+		"layout_style":    "default",
+		"show_calendar":   "true",
+		"show_schedule":   "true",
+		"show_inbox":      "true",
+		"show_notes":      "true",
+		"show_weather":    "true",
+		"show_sensors":    "true",
+		"weather_api_key": "",
+		"weather_city":    "New Delhi,IN",
 	}
 
 	for k, v := range defaults {

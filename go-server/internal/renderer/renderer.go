@@ -14,6 +14,7 @@ import (
 
 	"epaper-display/go-server/internal/config"
 	"epaper-display/go-server/internal/mqtt"
+	"epaper-display/go-server/internal/weather"
 )
 
 type Renderer struct {
@@ -23,15 +24,23 @@ type Renderer struct {
 }
 
 type renderPayload struct {
-	Width       int                  `json:"width"`
-	Height      int                  `json:"height"`
-	RegularFont string               `json:"regular_font"`
-	BoldFont    string               `json:"bold_font"`
-	OutputPath  string               `json:"output_path"`
-	LastUpdated string               `json:"last_updated"`
-	Notes       []string             `json:"notes"`
-	Emails      []mqtt.Email         `json:"emails"`
-	Calendar    []mqtt.CalendarEvent `json:"calendar"`
+	Width         int                  `json:"width"`
+	Height        int                  `json:"height"`
+	RegularFont   string               `json:"regular_font"`
+	BoldFont      string               `json:"bold_font"`
+	OutputPath    string               `json:"output_path"`
+	LastUpdated   string               `json:"last_updated"`
+	LayoutStyle   string               `json:"layout_style"`
+	ShowCalendar  bool                 `json:"show_calendar"`
+	ShowSchedule  bool                 `json:"show_schedule"`
+	ShowInbox     bool                 `json:"show_inbox"`
+	ShowNotes     bool                 `json:"show_notes"`
+	ShowWeather   bool                 `json:"show_weather"`
+	ShowSensors   bool                 `json:"show_sensors"`
+	Notes         []string             `json:"notes"`
+	Emails        []mqtt.Email         `json:"emails"`
+	Calendar      []mqtt.CalendarEvent `json:"calendar"`
+	Weather       *weather.WeatherData `json:"weather,omitempty"`
 }
 
 func NewRenderer(cfg *config.Config, regularFont, boldFont string) *Renderer {
@@ -43,19 +52,27 @@ func NewRenderer(cfg *config.Config, regularFont, boldFont string) *Renderer {
 }
 
 // Render creates the layout image by executing the Python rendering helper
-func (r *Renderer) Render(notes []string, emails []mqtt.Email, calendar []mqtt.CalendarEvent, lastUpdated string) (image.Image, error) {
+func (r *Renderer) Render(notes []string, emails []mqtt.Email, calendar []mqtt.CalendarEvent, weatherData *weather.WeatherData, lastUpdated string) (image.Image, error) {
 	tempPath := filepath.Join(os.TempDir(), fmt.Sprintf("eink_layout_%d.png", os.Getpid()))
 
 	payload := renderPayload{
-		Width:       r.cfg.Width,
-		Height:      r.cfg.Height,
-		RegularFont: r.regularFont,
-		BoldFont:    r.boldFont,
-		OutputPath:  tempPath,
-		LastUpdated: lastUpdated,
-		Notes:       notes,
-		Emails:      emails,
-		Calendar:    calendar,
+		Width:         r.cfg.Width,
+		Height:        r.cfg.Height,
+		RegularFont:   r.regularFont,
+		BoldFont:      r.boldFont,
+		OutputPath:    tempPath,
+		LastUpdated:   lastUpdated,
+		LayoutStyle:   r.cfg.LayoutStyle,
+		ShowCalendar:  r.cfg.ShowCalendar,
+		ShowSchedule:  r.cfg.ShowSchedule,
+		ShowInbox:     r.cfg.ShowInbox,
+		ShowNotes:     r.cfg.ShowNotes,
+		ShowWeather:   r.cfg.ShowWeather,
+		ShowSensors:   r.cfg.ShowSensors,
+		Notes:         notes,
+		Emails:        emails,
+		Calendar:      calendar,
+		Weather:       weatherData,
 	}
 
 	jsonBytes, err := json.Marshal(payload)

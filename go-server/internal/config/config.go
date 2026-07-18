@@ -21,6 +21,15 @@ type Config struct {
 	Width         int    `yaml:"width"`
 	Height        int    `yaml:"height"`
 	FontFamily    string `yaml:"font_family"`
+	LayoutStyle   string `yaml:"layout_style"`
+	ShowCalendar  bool   `yaml:"show_calendar"`
+	ShowSchedule  bool   `yaml:"show_schedule"`
+	ShowInbox     bool   `yaml:"show_inbox"`
+	ShowNotes     bool   `yaml:"show_notes"`
+	ShowWeather   bool   `yaml:"show_weather"`
+	ShowSensors   bool   `yaml:"show_sensors"`
+	WeatherAPIKey string `yaml:"weather_api_key"`
+	WeatherCity   string `yaml:"weather_city"`
 }
 
 // LoadConfig loads configuration from a file, then overrides with environment variables
@@ -37,6 +46,14 @@ func LoadConfig(path string) (*Config, error) {
 		Width:         800,
 		Height:        480,
 		FontFamily:    "Mukta",
+		LayoutStyle:   "default",
+		ShowCalendar:  true,
+		ShowSchedule:  true,
+		ShowInbox:     true,
+		ShowNotes:     true,
+		ShowWeather:   true,
+		ShowSensors:   true,
+		WeatherCity:   "New Delhi,IN",
 	}
 
 	// Try reading from file if it exists

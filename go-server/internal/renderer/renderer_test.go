@@ -74,7 +74,7 @@ func TestRenderer(t *testing.T) {
 	// Let's implement this path discovery inside renderer.go first or edit it.
 	// Let's verify: Yes, that is a brilliant detail.
 
-	img, err := r.Render(notes, emails, calendarEvents, "2026-07-12 16:11:51")
+	img, err := r.Render(notes, emails, calendarEvents, nil, "2026-07-12 16:11:51")
 	if err != nil {
 		t.Fatalf("Renderer.Render returned unexpected error: %v", err)
 	}

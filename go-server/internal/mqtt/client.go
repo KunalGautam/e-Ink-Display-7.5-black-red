@@ -9,6 +9,7 @@ import (
 
 	"epaper-display/go-server/internal/config"
 	"epaper-display/go-server/internal/db"
+	"epaper-display/go-server/internal/weather"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -25,9 +26,10 @@ type CalendarEvent struct {
 }
 
 type Client struct {
-	client mqtt.Client
-	cfg    *config.Config
-	db     *db.DB
+	client        mqtt.Client
+	cfg           *config.Config
+	db            *db.DB
+	weatherClient *weather.WeatherClient
 
 	mu          sync.RWMutex
 	notes       []string
@@ -36,14 +38,24 @@ type Client struct {
 	lastUpdated time.Time
 }
 
-func NewClient(cfg *config.Config, database *db.DB) *Client {
+func NewClient(cfg *config.Config, database *db.DB, weatherClient *weather.WeatherClient) *Client {
 	c := &Client{
-		cfg:         cfg,
-		db:          database,
-		notes:       []string{"No notes received yet. Publish to " + cfg.NotesTopic},
-		emails:      []Email{{Sender: "System", Subject: "No emails received yet. Publish to " + cfg.EmailsTopic}},
-		calendar:    []CalendarEvent{{Title: "No events received yet. Publish to " + cfg.CalendarTopic, Time: "All Day"}},
-		lastUpdated: time.Now(),
+		cfg:           cfg,
+		db:            database,
+		weatherClient: weatherClient,
+		notes:         []string{"No notes received yet. Publish to " + cfg.NotesTopic},
+		emails:        []Email{{Sender: "System", Subject: "No emails received yet. Publish to " + cfg.EmailsTopic}},
+		calendar:      []CalendarEvent{{Title: "No events received yet. Publish to " + cfg.CalendarTopic, Time: "All Day"}},
+		lastUpdated:   time.Now(),
+	}
+
+	// Pre-populate weather cache from SQLite DB
+	if cachedWeather, err := database.GetSetting("cached_weather"); err == nil && cachedWeather != "" {
+		var parsedWeather weather.WeatherData
+		if err := json.Unmarshal([]byte(cachedWeather), &parsedWeather); err == nil {
+			weatherClient.SetWeather(&parsedWeather)
+			log.Println("Loaded cached weather from SQLite database cache")
+		}
 	}
 
 	// Pre-populate caches from SQLite DB for offline resilience
@@ -108,6 +120,14 @@ func (c *Client) Connect() error {
 			log.Printf("Failed to subscribe to calendar topic %s: %v", c.cfg.CalendarTopic, token.Error())
 		} else {
 			log.Printf("Subscribed to calendar topic: %s", c.cfg.CalendarTopic)
+		}
+
+		// Subscribe to weather
+		weatherTopic := "home/eink/weather"
+		if token := client.Subscribe(weatherTopic, 1, c.handleWeatherMsg); token.Wait() && token.Error() != nil {
+			log.Printf("Failed to subscribe to weather topic %s: %v", weatherTopic, token.Error())
+		} else {
+			log.Printf("Subscribed to weather topic: %s", weatherTopic)
 		}
 	})
 
@@ -220,4 +240,28 @@ func (c *Client) handleCalendarMsg(client mqtt.Client, msg mqtt.Message) {
 	c.calendar = parsedCal
 	c.lastUpdated = time.Now()
 	c.mu.Unlock()
+}
+
+func (c *Client) handleWeatherMsg(client mqtt.Client, msg mqtt.Message) {
+	payload := msg.Payload()
+	log.Printf("Received weather update via MQTT: %s", string(payload))
+
+	var parsedWeather weather.WeatherData
+	if err := json.Unmarshal(payload, &parsedWeather); err != nil {
+		log.Printf("Weather payload not a valid WeatherData JSON object: %v. Ignoring update.", err)
+		return
+	}
+
+	if c.weatherClient != nil {
+		c.weatherClient.SetWeather(&parsedWeather)
+	}
+
+	c.mu.Lock()
+	c.lastUpdated = time.Now()
+	c.mu.Unlock()
+
+	// Persist weather to database under key "cached_weather" as JSON string
+	if err := c.db.SaveSetting("cached_weather", string(payload)); err != nil {
+		log.Printf("Failed to save cached weather to SQLite DB: %v", err)
+	}
 }

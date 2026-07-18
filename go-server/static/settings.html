@@ -974,11 +974,12 @@
                 div.style.padding = '10px';
                 div.style.borderRadius = '6px';
                 div.style.background = 'rgba(255,255,255,0.01)';
+                div.style.marginBottom = '10px';
                 div.innerHTML = `
-                    <div style="font-weight: bold; font-size: 0.8rem; margin-bottom: 8px; color: var(--text-muted);">Cell Slot #${i+1}</div>
+                    <div style="font-weight: bold; font-size: 0.8rem; margin-bottom: 8px; color: var(--accent-color);">Cell Slot #${i+1}</div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                         <div class="form-group" style="grid-column: 1 / -1;">
-                            <label>Type</label>
+                            <label>Widget Type</label>
                             <select class="c_child_type" data-slot="${i}" onchange="updateContainerJSON()">
                                 <option value="calendar" ${child.type === 'calendar' ? 'selected' : ''}>Calendar</option>
                                 <option value="datetime" ${child.type === 'datetime' ? 'selected' : ''}>Date / Time</option>
@@ -1001,6 +1002,25 @@
                             <label>Color BG</label>
                             <input type="text" class="c_child_bg" data-slot="${i}" value="${child.color_bg || ''}" placeholder="Transparent" oninput="updateContainerJSON()">
                         </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label>Google Font URL</label>
+                            <input type="text" class="c_child_font_url" data-slot="${i}" value="${child.font_url || ''}" placeholder="https://fonts.googleapis.com/css2?..." oninput="updateContainerJSON()">
+                        </div>
+                        <div class="form-group">
+                            <label>Font Size</label>
+                            <input type="number" class="c_child_font_size" data-slot="${i}" value="${child.font_size || ''}" placeholder="12" step="0.5" oninput="updateContainerJSON()">
+                        </div>
+                        <div class="form-group">
+                            <label>Font Weight</label>
+                            <select class="c_child_font_weight" data-slot="${i}" onchange="updateContainerJSON()">
+                                <option value="Regular" ${child.font_weight === 'Regular' ? 'selected' : ''}>Regular</option>
+                                <option value="Bold" ${child.font_weight === 'Bold' ? 'selected' : ''}>Bold</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label>MQTT Topic</label>
+                            <input type="text" class="c_child_mqtt_topic" data-slot="${i}" value="${child.mqtt_topic || ''}" placeholder="e.g. home/eink/temp" oninput="updateContainerJSON()">
+                        </div>
                     </div>
                 `;
                 container.appendChild(div);
@@ -1018,13 +1038,21 @@
             const configs = document.querySelectorAll('.c_child_config');
             const fgs = document.querySelectorAll('.c_child_fg');
             const bgs = document.querySelectorAll('.c_child_bg');
+            const fontUrls = document.querySelectorAll('.c_child_font_url');
+            const fontSizes = document.querySelectorAll('.c_child_font_size');
+            const fontWeights = document.querySelectorAll('.c_child_font_weight');
+            const mqttTopics = document.querySelectorAll('.c_child_mqtt_topic');
 
             for (let i = 0; i < types.length; i++) {
                 children.push({
                     type: types[i].value,
                     custom_config: configs[i].value,
                     color_fg: fgs[i].value,
-                    color_bg: bgs[i].value
+                    color_bg: bgs[i].value,
+                    font_url: fontUrls[i].value,
+                    font_size: parseFloat(fontSizes[i].value) || 0,
+                    font_weight: fontWeights[i].value,
+                    mqtt_topic: mqttTopics[i].value
                 });
             }
 

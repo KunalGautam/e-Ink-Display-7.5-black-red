@@ -8,6 +8,7 @@ import (
 
 	"github.com/fogleman/gg"
 	"github.com/golang/freetype/truetype"
+	"golang.org/x/image/font"
 )
 
 type ContainerWidget struct{}
@@ -19,6 +20,8 @@ type ChildWidgetConfig struct {
 	FontURL      string  `json:"font_url"`
 	FontSize     float64 `json:"font_size"`
 	FontWeight   string  `json:"font_weight"`
+	MQTTTopic    string  `json:"mqtt_topic"`
+	MQTTBroker   string  `json:"mqtt_broker"`
 	CustomConfig string  `json:"custom_config"`
 }
 
@@ -103,24 +106,34 @@ func (w *ContainerWidget) Render(ctx context.Context, rCtx *RenderContext) error
 		childDc.SetColor(color.Transparent)
 		childDc.Clear()
 
-		// Configure font for child if URL is provided
-		if child.FontURL != "" && rCtx.FontCache != nil {
-			fontFace, err := rCtx.FontCache.LoadFont(child.FontURL)
-			if err == nil && fontFace != nil {
+		// Configure font for child
+		var childFace font.Face
+		fontURL := child.FontURL
+		if fontURL == "" {
+			fontURL = rCtx.FontURL
+		}
+
+		if fontURL != "" && rCtx.FontCache != nil {
+			fontAsset, err := rCtx.FontCache.LoadFont(fontURL)
+			if err == nil && fontAsset != nil {
 				fontSize := child.FontSize
 				if fontSize == 0 {
 					fontSize = 12
 				}
-				face := truetype.NewFace(fontFace, &truetype.Options{
+				face := truetype.NewFace(fontAsset, &truetype.Options{
 					Size: fontSize,
 				})
-				childDc.SetFontFace(face)
+				if face != nil {
+					childFace = face
+					childDc.SetFontFace(face)
+				}
 			}
-		} else {
-			// Inherit parent font if child does not specify
-			if rCtx.FontFace != nil {
-				childDc.SetFontFace(rCtx.FontFace)
-			}
+		}
+
+		// Fallback to parent FontFace if child face was not resolved
+		if childFace == nil && rCtx.FontFace != nil {
+			childFace = rCtx.FontFace
+			childDc.SetFontFace(rCtx.FontFace)
 		}
 
 		childFG := child.ColorFG
@@ -137,6 +150,16 @@ func (w *ContainerWidget) Render(ctx context.Context, rCtx *RenderContext) error
 			childDc.Clear()
 		}
 
+		// Resolve child MQTT topic payload
+		childLatestData := rCtx.LatestData
+		if child.MQTTTopic != "" && rCtx.MqttReg != nil {
+			broker := child.MQTTBroker
+			if broker == "" {
+				broker = rCtx.MQTTBroker
+			}
+			childLatestData = rCtx.MqttReg.GetPayload(broker, child.MQTTTopic)
+		}
+
 		childRCtx := &RenderContext{
 			Ctx:          childDc,
 			Width:        int(cellW),
@@ -145,9 +168,13 @@ func (w *ContainerWidget) Render(ctx context.Context, rCtx *RenderContext) error
 			Timezone:     rCtx.Timezone,
 			ColorFG:      childFG,
 			ColorBG:      childBG,
-			LatestData:   rCtx.LatestData, // Inherit latest stashed MQTT payload
+			LatestData:   childLatestData,
 			CustomConfig: child.CustomConfig,
 			FontCache:    rCtx.FontCache,
+			FontFace:     childFace,
+			MqttReg:      rCtx.MqttReg,
+			MQTTBroker:   rCtx.MQTTBroker,
+			FontURL:      fontURL,
 		}
 
 		if err := childRenderer.Render(ctx, childRCtx); err != nil {

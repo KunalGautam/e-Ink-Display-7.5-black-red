@@ -8,6 +8,7 @@ import (
 	"github.com/fogleman/gg"
 	"golang.org/x/image/font"
 	"epaper-display/go-server/internal/fonts"
+	"epaper-display/go-server/internal/mqtt"
 )
 
 type RenderContext struct {
@@ -22,6 +23,9 @@ type RenderContext struct {
 	CustomConfig string // JSON parameters
 	FontCache    *fonts.Cache
 	FontFace     font.Face
+	MqttReg      *mqtt.Registry
+	MQTTBroker   string
+	FontURL      string
 }
 
 type Widget interface {

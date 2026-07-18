@@ -2,6 +2,7 @@ package canvas
 
 import (
 	"context"
+	"encoding/json"
 	"image"
 	"image/color"
 	"log"
@@ -99,22 +100,41 @@ func (r *Renderer) RenderCanvas(ctx context.Context, canvasID string) (image.Ima
 			}
 		}
 
+		// Resolve MQTT broker details with fallback
+		broker := w.MQTTBroker
+		username := ""
+		password := ""
+		if broker == "" && cRec.MQTTBroker != "" {
+			broker = cRec.MQTTBroker
+			username = cRec.MQTTUsername
+			password = cRec.MQTTPassword
+		}
+
 		// Fetch latest MQTT cached payload if bound
 		latestData := ""
 		if w.MQTTTopic != "" {
-			broker := w.MQTTBroker
-			username := ""
-			password := ""
-			if broker == "" && cRec.MQTTBroker != "" {
-				broker = cRec.MQTTBroker
-				username = cRec.MQTTUsername
-				password = cRec.MQTTPassword
-			}
 			latestData = r.mqttReg.GetPayload(broker, w.MQTTTopic)
 			// Trigger dynamic subscription connection in background
 			go func(b, t, u, p string) {
 				_ = r.mqttReg.Subscribe(b, t, u, p)
 			}(broker, w.MQTTTopic, username, password)
+		}
+
+		if w.Type == "container" && w.CustomConfig != "" {
+			var containerCfg struct {
+				Children []struct {
+					MQTTTopic string `json:"mqtt_topic"`
+				} `json:"children"`
+			}
+			if err := json.Unmarshal([]byte(w.CustomConfig), &containerCfg); err == nil {
+				for _, child := range containerCfg.Children {
+					if child.MQTTTopic != "" {
+						go func(b, t, u, p string) {
+							_ = r.mqttReg.Subscribe(b, t, u, p)
+						}(broker, child.MQTTTopic, username, password)
+					}
+				}
+			}
 		}
 
 		// Prepare render context for widget
@@ -128,6 +148,9 @@ func (r *Renderer) RenderCanvas(ctx context.Context, canvasID string) (image.Ima
 			CustomConfig: w.CustomConfig,
 			FontCache:    r.fontCache,
 			FontFace:     face,
+			MqttReg:      r.mqttReg,
+			MQTTBroker:   broker,
+			FontURL:      w.FontURL,
 		}
 
 		// Setup defaults colors

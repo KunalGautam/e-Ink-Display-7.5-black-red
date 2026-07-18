@@ -3,11 +3,8 @@ package widget
 import (
 	"context"
 	"encoding/json"
-	"math"
 	"strconv"
 	"time"
-
-	"golang.org/x/image/font"
 )
 
 type CalendarWidget struct{}
@@ -21,13 +18,36 @@ func (w *CalendarWidget) Render(ctx context.Context, rCtx *RenderContext) error 
 	now := time.Now().In(loc)
 	year, month, today := now.Date()
 
-	paddingVal := 3.0
+	offsetX := 0.0
+	offsetY := 0.0
+	circleRadius := 12.0
+	textOffsetX := 0.0
+	textOffsetY := 0.0
+
 	if rCtx.CustomConfig != "" {
 		var cfg struct {
-			Padding *float64 `json:"padding"`
+			OffsetX     *float64 `json:"circle_offset_x"`
+			OffsetY     *float64 `json:"circle_offset_y"`
+			Radius      *float64 `json:"circle_radius"`
+			TextOffsetX *float64 `json:"text_offset_x"`
+			TextOffsetY *float64 `json:"text_offset_y"`
 		}
-		if err := json.Unmarshal([]byte(rCtx.CustomConfig), &cfg); err == nil && cfg.Padding != nil {
-			paddingVal = *cfg.Padding
+		if err := json.Unmarshal([]byte(rCtx.CustomConfig), &cfg); err == nil {
+			if cfg.OffsetX != nil {
+				offsetX = *cfg.OffsetX
+			}
+			if cfg.OffsetY != nil {
+				offsetY = *cfg.OffsetY
+			}
+			if cfg.Radius != nil {
+				circleRadius = *cfg.Radius
+			}
+			if cfg.TextOffsetX != nil {
+				textOffsetX = *cfg.TextOffsetX
+			}
+			if cfg.TextOffsetY != nil {
+				textOffsetY = *cfg.TextOffsetY
+			}
 		}
 	}
 
@@ -80,38 +100,14 @@ func (w *CalendarWidget) Render(ctx context.Context, rCtx *RenderContext) error 
 		if d == today {
 			// Highlight today
 			rCtx.Ctx.SetHexColor(accentColor)
-			circleX := cx
-			circleY := cy
-			radius := 12.0
+			circleX := cx + offsetX
+			circleY := cy + offsetY
 
-			if rCtx.FontFace != nil {
-				s := strconv.Itoa(d)
-				bounds, advance := font.BoundString(rCtx.FontFace, s)
-				advanceFloat := float64(advance) / 64.0
-				minX := float64(bounds.Min.X) / 64.0
-				maxX := float64(bounds.Max.X) / 64.0
-				minY := float64(bounds.Min.Y) / 64.0
-				maxY := float64(bounds.Max.Y) / 64.0
-
-				visualWidth := maxX - minX
-				visualHeight := maxY - minY
-
-				// Center circle on visual bounding box
-				circleX = cx - advanceFloat/2.0 + (minX + maxX)/2.0
-				circleY = cy + (minY + maxY)/2.0
-
-				// Calculate radius based on visual bounding box plus padding
-				radius = math.Max(visualWidth, visualHeight)/2.0 + paddingVal
-				if radius < 11 {
-					radius = 11
-				}
-			}
-
-			rCtx.Ctx.DrawCircle(circleX, circleY, radius)
+			rCtx.Ctx.DrawCircle(circleX, circleY, circleRadius)
 			rCtx.Ctx.Fill()
 
 			rCtx.Ctx.SetHexColor("#FFFFFF")
-			rCtx.Ctx.DrawStringAnchored(strconv.Itoa(d), cx, cy, 0.5, 0.5)
+			rCtx.Ctx.DrawStringAnchored(strconv.Itoa(d), cx + textOffsetX, cy + textOffsetY, 0.5, 0.5)
 		} else {
 			rCtx.Ctx.SetHexColor(rCtx.ColorFG)
 			rCtx.Ctx.DrawStringAnchored(strconv.Itoa(d), cx, cy, 0.5, 0.5)

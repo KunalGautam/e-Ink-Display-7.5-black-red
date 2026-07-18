@@ -568,9 +568,25 @@
                         <div class="form-group form-group-full" id="calendar_builder_group" style="display: none; border-top: 1px dashed var(--card-border); padding-top: 1rem; margin-top: 0.5rem;">
                             <label style="color: var(--accent-color); font-weight: bold; margin-bottom: 0.5rem;">📅 Calendar Settings</label>
                             <div class="form-grid">
-                                <div class="form-group form-group-full">
-                                    <label for="cal_circle_padding">Circle Padding (px)</label>
-                                    <input type="number" id="cal_circle_padding" value="3" min="-5" max="15" step="0.5" oninput="updateCalendarJSON()">
+                                <div class="form-group">
+                                    <label for="cal_circle_offset_x">Circle X Offset (px)</label>
+                                    <input type="number" id="cal_circle_offset_x" value="0" step="0.5" oninput="updateCalendarJSON()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="cal_circle_offset_y">Circle Y Offset (px)</label>
+                                    <input type="number" id="cal_circle_offset_y" value="0" step="0.5" oninput="updateCalendarJSON()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="cal_circle_radius">Circle Radius (px)</label>
+                                    <input type="number" id="cal_circle_radius" value="12" min="1" step="0.5" oninput="updateCalendarJSON()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="cal_text_offset_x">Text X Offset (px)</label>
+                                    <input type="number" id="cal_text_offset_x" value="0" step="0.5" oninput="updateCalendarJSON()">
+                                </div>
+                                <div class="form-group">
+                                    <label for="cal_text_offset_y">Text Y Offset (px)</label>
+                                    <input type="number" id="cal_text_offset_y" value="0" step="0.5" oninput="updateCalendarJSON()">
                                 </div>
                             </div>
                         </div>
@@ -1078,9 +1094,18 @@
         }
 
         function updateCalendarJSON() {
-            const padding = parseFloat(document.getElementById('cal_circle_padding').value);
+            const ox = parseFloat(document.getElementById('cal_circle_offset_x').value) || 0;
+            const oy = parseFloat(document.getElementById('cal_circle_offset_y').value) || 0;
+            const r = parseFloat(document.getElementById('cal_circle_radius').value) || 12;
+            const tx = parseFloat(document.getElementById('cal_text_offset_x').value) || 0;
+            const ty = parseFloat(document.getElementById('cal_text_offset_y').value) || 0;
+
             const payload = {
-                padding: isNaN(padding) ? 3.0 : padding
+                circle_offset_x: ox,
+                circle_offset_y: oy,
+                circle_radius: r,
+                text_offset_x: tx,
+                text_offset_y: ty
             };
             document.getElementById('w_custom_config').value = JSON.stringify(payload, null, 2);
         }
@@ -1128,15 +1153,23 @@
                     calendarGroup.style.display = 'block';
                     customGroup.style.display = 'none';
                     
-                    let padding = 3.0;
+                    let ox = 0, oy = 0, r = 12, tx = 0, ty = 0;
                     try {
                         const rawJson = document.getElementById('w_custom_config').value;
                         if (rawJson) {
                             const parsed = JSON.parse(rawJson);
-                            padding = parsed.padding !== undefined ? parsed.padding : 3.0;
+                            ox = parsed.circle_offset_x !== undefined ? parsed.circle_offset_x : 0;
+                            oy = parsed.circle_offset_y !== undefined ? parsed.circle_offset_y : 0;
+                            r = parsed.circle_radius !== undefined ? parsed.circle_radius : 12;
+                            tx = parsed.text_offset_x !== undefined ? parsed.text_offset_x : 0;
+                            ty = parsed.text_offset_y !== undefined ? parsed.text_offset_y : 0;
                         }
                     } catch(e) {}
-                    document.getElementById('cal_circle_padding').value = padding;
+                    document.getElementById('cal_circle_offset_x').value = ox;
+                    document.getElementById('cal_circle_offset_y').value = oy;
+                    document.getElementById('cal_circle_radius').value = r;
+                    document.getElementById('cal_text_offset_x').value = tx;
+                    document.getElementById('cal_text_offset_y').value = ty;
                     topicInput.removeAttribute('required');
                 } else if (type === 'datetime') {
                     document.getElementById('w_custom_config').placeholder = '{"format": "03:04 PM"}';

@@ -102,11 +102,19 @@ func (r *Renderer) RenderCanvas(ctx context.Context, canvasID string) (image.Ima
 		// Fetch latest MQTT cached payload if bound
 		latestData := ""
 		if w.MQTTTopic != "" {
-			latestData = r.mqttReg.GetPayload(w.MQTTBroker, w.MQTTTopic)
+			broker := w.MQTTBroker
+			username := ""
+			password := ""
+			if broker == "" && cRec.MQTTBroker != "" {
+				broker = cRec.MQTTBroker
+				username = cRec.MQTTUsername
+				password = cRec.MQTTPassword
+			}
+			latestData = r.mqttReg.GetPayload(broker, w.MQTTTopic)
 			// Trigger dynamic subscription connection in background
-			go func(broker, topic string) {
-				_ = r.mqttReg.Subscribe(broker, topic, "", "")
-			}(w.MQTTBroker, w.MQTTTopic)
+			go func(b, t, u, p string) {
+				_ = r.mqttReg.Subscribe(b, t, u, p)
+			}(broker, w.MQTTTopic, username, password)
 		}
 
 		// Prepare render context for widget

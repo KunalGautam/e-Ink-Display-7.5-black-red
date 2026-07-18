@@ -116,9 +116,9 @@
             flex: 1;
             padding: 2rem;
             display: grid;
-            grid-template-columns: 280px 1fr;
+            grid-template-columns: 310px 1fr;
             gap: 2rem;
-            max-width: 1800px;
+            max-width: 1920px;
             margin: 0 auto;
             width: 100%;
         }
@@ -351,11 +351,65 @@
                 <div class="form-group" style="margin-bottom: 8px;">
                     <label for="device_template">Device Template</label>
                     <select id="device_template" onchange="toggleCustomDeviceFields()">
-                        <option value="waveshare_7in5_v2">Waveshare 7.5" V2 (800x480, BWR)</option>
-                        <option value="waveshare_7in5_mono">Waveshare 7.5" Mono (800x480, Mono)</option>
-                        <option value="waveshare_4in2">Waveshare 4.2" Mono (400x300, Mono)</option>
-                        <option value="waveshare_2in9_bwr">Waveshare 2.9" BWR (296x128, BWR)</option>
-                        <option value="waveshare_2in9_mono">Waveshare 2.9" Mono (296x128, Mono)</option>
+                        <optgroup label="Large Screens (5.65&quot; - 13.3&quot;)">
+                            <option value="ws_5in65_f" data-width="600" data-height="448" data-mode="bwr">5.65inch e-Paper (F) [600x448]</option>
+                            <option value="ws_5in83" data-width="648" data-height="480" data-mode="mono">5.83inch e-Paper HAT [648x480]</option>
+                            <option value="ws_5in83_b" data-width="648" data-height="480" data-mode="bwr">5.83inch e-Paper HAT (B) [648x480]</option>
+                            <option value="ws_5in83_c" data-width="648" data-height="480" data-mode="bwr">5.83inch e-Paper HAT (C) [648x480]</option>
+                            <option value="ws_6in" data-width="800" data-height="600" data-mode="mono">6inch e-Paper HAT [800x600]</option>
+                            <option value="ws_6in_hd" data-width="1024" data-height="758" data-mode="mono">6inch HD e-Paper HAT [1024x758]</option>
+                            <option value="ws_7in5" data-width="800" data-height="480" data-mode="mono">7.5inch e-Paper HAT [800x480]</option>
+                            <option value="ws_7in5_b" data-width="800" data-height="480" data-mode="bwr">7.5inch e-Paper HAT (B) [800x480]</option>
+                            <option value="ws_7in5_c" data-width="800" data-height="480" data-mode="bwr">7.5inch e-Paper HAT (C) [800x480]</option>
+                            <option value="ws_7in5_h" data-width="640" data-height="384" data-mode="bwr">7.5inch e-Paper HAT (H) [640x384]</option>
+                            <option value="ws_7in5_hd" data-width="880" data-height="528" data-mode="mono">7.5inch HD e-Paper HAT [880x528]</option>
+                            <option value="ws_7in5_hd_b" data-width="880" data-height="528" data-mode="bwr">7.5inch HD e-Paper (B) [880x528]</option>
+                            <option value="ws_7in5_g" data-width="800" data-height="480" data-mode="mono">7.5inch e-Paper (G) [800x480]</option>
+                            <option value="ws_7in8" data-width="1872" data-height="1404" data-mode="mono">7.8inch e-Paper HAT [1872x1404]</option>
+                            <option value="ws_9in7" data-width="1200" data-height="825" data-mode="mono">9.7inch e-Paper HAT [1200x825]</option>
+                            <option value="ws_10in2_g" data-width="960" data-height="640" data-mode="mono">10.2inch e-Paper (G) [960x640]</option>
+                            <option value="ws_10in3" data-width="1872" data-height="1404" data-mode="mono">10.3inch e-Paper HAT [1872x1404]</option>
+                            <option value="ws_10in3_d" data-width="1872" data-height="1404" data-mode="mono">10.3inch e-Paper (D) [1872x1404]</option>
+                            <option value="ws_12in48" data-width="1304" data-height="984" data-mode="mono">12.48inch e-Paper [1304x984]</option>
+                            <option value="ws_12in48_b" data-width="1304" data-height="984" data-mode="bwr">12.48inch e-Paper (B) [1304x984]</option>
+                            <option value="ws_13in3" data-width="1600" data-height="1200" data-mode="mono">13.3inch e-Paper HAT [1600x1200]</option>
+                            <option value="ws_13in3_b" data-width="1600" data-height="1200" data-mode="bwr">13.3inch e-Paper (B) [1600x1200]</option>
+                            <option value="ws_13in3_k" data-width="1600" data-height="1200" data-mode="bwr">13.3inch e-Paper (K) [1600x1200]</option>
+                        </optgroup>
+                        <optgroup label="Medium Screens (2.6&quot; - 4.3&quot;)">
+                            <option value="ws_2in66" data-width="296" data-height="152" data-mode="mono">2.66inch e-Paper [296x152]</option>
+                            <option value="ws_2in66_b" data-width="296" data-height="152" data-mode="bwr">2.66inch e-Paper (B) [296x152]</option>
+                            <option value="ws_2in7" data-width="264" data-height="176" data-mode="mono">2.7inch e-Paper HAT [264x176]</option>
+                            <option value="ws_2in7_b" data-width="264" data-height="176" data-mode="bwr">2.7inch e-Paper (B) [264x176]</option>
+                            <option value="ws_2in9" data-width="296" data-height="128" data-mode="mono">2.9inch e-Paper HAT [296x128]</option>
+                            <option value="ws_2in9_b" data-width="296" data-height="128" data-mode="bwr">2.9inch e-Paper (B) [296x128]</option>
+                            <option value="ws_2in9_c" data-width="296" data-height="128" data-mode="bwr">2.9inch e-Paper (C) [296x128]</option>
+                            <option value="ws_2in9_d" data-width="296" data-height="128" data-mode="mono">2.9inch e-Paper (D) [296x128]</option>
+                            <option value="ws_3in52_b" data-width="360" data-height="240" data-mode="bwr">3.52inch e-Paper (B) [360x240]</option>
+                            <option value="ws_3in6_e" data-width="240" data-height="416" data-mode="bwr">3.6inch e-Paper (E) [240x416]</option>
+                            <option value="ws_3in7" data-width="480" data-height="280" data-mode="mono">3.7inch e-Paper HAT [480x280]</option>
+                            <option value="ws_4in01_f" data-width="640" data-height="400" data-mode="bwr">4.01inch e-Paper (F) [640x400]</option>
+                            <option value="ws_4in2" data-width="400" data-height="300" data-mode="mono">4.2inch e-Paper HAT [400x300]</option>
+                            <option value="ws_4in2_b" data-width="400" data-height="300" data-mode="bwr">4.2inch e-Paper (B) [400x300]</option>
+                            <option value="ws_4in2_c" data-width="400" data-height="300" data-mode="bwr">4.2inch e-Paper (C) [400x300]</option>
+                            <option value="ws_4in2_g" data-width="400" data-height="300" data-mode="mono">4.2inch e-Paper (G) [400x300]</option>
+                            <option value="ws_4in3_uart" data-width="800" data-height="600" data-mode="mono">4.3inch UART Module [800x600]</option>
+                        </optgroup>
+                        <optgroup label="Small Screens (1.02&quot; - 2.2&quot;)">
+                            <option value="ws_1in54" data-width="200" data-height="200" data-mode="mono">1.54inch e-Paper [200x200]</option>
+                            <option value="ws_1in54_b" data-width="200" data-height="200" data-mode="bwr">1.54inch e-Paper (B) [200x200]</option>
+                            <option value="ws_1in54_c" data-width="200" data-height="200" data-mode="bwr">1.54inch e-Paper (C) [200x200]</option>
+                            <option value="ws_1in54_g" data-width="200" data-height="200" data-mode="mono">1.54inch e-Paper (G) [200x200]</option>
+                            <option value="ws_1in9_seg" data-width="152" data-height="152" data-mode="mono">1.9inch Segment Module [152x152]</option>
+                            <option value="ws_2in13" data-width="250" data-height="122" data-mode="mono">2.13inch e-Paper HAT [250x122]</option>
+                            <option value="ws_2in13_plus" data-width="250" data-height="122" data-mode="mono">2.13inch e-Paper HAT+ [250x122]</option>
+                            <option value="ws_2in13_b" data-width="250" data-height="122" data-mode="bwr">2.13inch e-Paper (B) [250x122]</option>
+                            <option value="ws_2in13_c" data-width="250" data-height="122" data-mode="bwr">2.13inch e-Paper (C) [250x122]</option>
+                            <option value="ws_2in13_d" data-width="250" data-height="122" data-mode="mono">2.13inch e-Paper (D) [250x122]</option>
+                            <option value="ws_2in13_touch" data-width="250" data-height="122" data-mode="mono">2.13inch Touch HAT [250x122]</option>
+                            <option value="ws_2in15_b" data-width="250" data-height="122" data-mode="bwr">2.15inch e-Paper (B) [250x122]</option>
+                            <option value="ws_2in15_g" data-width="250" data-height="122" data-mode="mono">2.15inch e-Paper (G) [250x122]</option>
+                        </optgroup>
                         <option value="custom">Custom Dimensions...</option>
                     </select>
                 </div>
@@ -378,10 +432,27 @@
                         </select>
                     </div>
                 </div>
-                <div class="form-group" style="margin-bottom: 12px;">
+                <div class="form-group" style="margin-bottom: 8px;">
                     <label for="canvas_timezone">Timezone</label>
                     <input type="text" id="canvas_timezone" value="Asia/Kolkata">
                 </div>
+
+                <div style="border-top: 1px solid var(--card-border); margin: 12px 0 8px 0; padding-top: 8px;">
+                    <span style="font-size: 0.75rem; font-weight: bold; color: var(--text-muted); text-transform: uppercase;">Canvas MQTT Settings</span>
+                </div>
+                <div class="form-group" style="margin-bottom: 8px;">
+                    <label for="canvas_mqtt_broker">MQTT Broker URL</label>
+                    <input type="text" id="canvas_mqtt_broker" placeholder="tcp://100.101.102.4:1883">
+                </div>
+                <div class="form-group" style="margin-bottom: 8px;">
+                    <label for="canvas_mqtt_username">MQTT Username</label>
+                    <input type="text" id="canvas_mqtt_username" placeholder="Optional">
+                </div>
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label for="canvas_mqtt_password">MQTT Password</label>
+                    <input type="password" id="canvas_mqtt_password" placeholder="Optional">
+                </div>
+
                 <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Create Canvas</button>
             </form>
         </div>
@@ -396,7 +467,7 @@
                 </div>
 
                 <div class="preview-pane">
-                    <div id="canvasWorkspace" style="position: relative; background: #ffffff; transform-origin: top left; margin: 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                    <div id="canvasWorkspace" style="position: relative; background: #ffffff; background-image: linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px); background-size: 20px 20px; transform-origin: top left; margin: 0 auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
                         <img id="previewImage" src="" alt="Render preview loading..." style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; image-rendering: pixelated;">
                         <div id="widgetsOverlay" style="position: absolute; top:0; left:0; width:100%; height:100%; overflow: hidden;"></div>
                     </div>
@@ -486,7 +557,7 @@
 
                         <div class="form-group form-group-full">
                             <label for="w_mqtt_broker">MQTT Broker URL</label>
-                            <input type="text" id="w_mqtt_broker" placeholder="tcp://100.101.102.4:1883">
+                            <input type="text" id="w_mqtt_broker" placeholder="Falls back to canvas MQTT settings">
                         </div>
                         <div class="form-group form-group-full">
                             <label for="w_mqtt_topic">MQTT Topic Name</label>
@@ -545,7 +616,7 @@
                     data.forEach(c => {
                         const div = document.createElement('div');
                         div.className = `canvas-item ${c.id === currentCanvasID ? 'active' : ''}`;
-                        div.onclick = () => selectCanvas(c.id, c.width, c.height);
+                        div.onclick = () => selectCanvas(c.id, c.width, c.height, c);
                         div.innerHTML = `
                             <div>
                                 <div>${c.id}</div>
@@ -557,9 +628,9 @@
                     });
                     if (currentCanvasID) {
                         const cur = data.find(c => c.id === currentCanvasID);
-                        if (cur) selectCanvas(cur.id, cur.width, cur.height);
+                        if (cur) selectCanvas(cur.id, cur.width, cur.height, cur);
                     } else if (data.length > 0) {
-                        selectCanvas(data[0].id, data[0].width, data[0].height);
+                        selectCanvas(data[0].id, data[0].width, data[0].height, data[0]);
                     }
                 })
                 .catch(err => showToast("Error loading canvas list: " + err));
@@ -580,7 +651,7 @@
             pane.style.height = (canvasHeight * scale + 40) + 'px';
         }
 
-        function selectCanvas(id, w, h) {
+        function selectCanvas(id, w, h, cData) {
             currentCanvasID = id;
             canvasWidth = w || 800;
             canvasHeight = h || 480;
@@ -596,6 +667,15 @@
             // Load preview image
             const previewImg = document.getElementById('previewImage');
             previewImg.src = `/canvas/${id}/preview?t=` + new Date().getTime();
+
+            // Fill canvas settings values if edit details provided
+            if (cData) {
+                document.getElementById('new_canvas_id').value = cData.id || '';
+                document.getElementById('canvas_timezone').value = cData.timezone || 'Asia/Kolkata';
+                document.getElementById('canvas_mqtt_broker').value = cData.mqtt_broker || '';
+                document.getElementById('canvas_mqtt_username').value = cData.mqtt_username || '';
+                document.getElementById('canvas_mqtt_password').value = cData.mqtt_password || '';
+            }
 
             // Load widgets
             fetch(`/api/canvas/${id}`)
@@ -768,15 +848,24 @@
         function createCanvas(event) {
             event.preventDefault();
             const id = document.getElementById('new_canvas_id').value;
-            const template = document.getElementById('device_template').value;
+            const templateSelect = document.getElementById('device_template');
+            const template = templateSelect.value;
             const tz = document.getElementById('canvas_timezone').value;
+            const broker = document.getElementById('canvas_mqtt_broker').value;
+            const user = document.getElementById('canvas_mqtt_username').value;
+            const pass = document.getElementById('canvas_mqtt_password').value;
 
-            let bodyData = { id: id, device_type: template, timezone: tz };
+            let bodyData = { id: id, device_type: template, timezone: tz, mqtt_broker: broker, mqtt_username: user, mqtt_password: pass };
 
             if (template === 'custom') {
                 bodyData.width = parseInt(document.getElementById('custom_width').value);
                 bodyData.height = parseInt(document.getElementById('custom_height').value);
                 bodyData.color_mode = document.getElementById('custom_color_mode').value;
+            } else {
+                const selectedOpt = templateSelect.options[templateSelect.selectedIndex];
+                bodyData.width = parseInt(selectedOpt.getAttribute('data-width')) || 800;
+                bodyData.height = parseInt(selectedOpt.getAttribute('data-height')) || 480;
+                bodyData.color_mode = selectedOpt.getAttribute('data-mode') || 'mono';
             }
 
             fetch('/api/canvas', {
@@ -786,12 +875,11 @@
             })
             .then(res => res.json())
             .then(data => {
-                showToast("Canvas created successfully!");
-                document.getElementById('canvasForm').reset();
+                showToast("Canvas configurations updated/created!");
                 currentCanvasID = id;
                 loadCanvases();
             })
-            .catch(err => showToast("Error creating canvas: " + err));
+            .catch(err => showToast("Error updating/creating canvas: " + err));
         }
 
         function deleteCurrentCanvas() {
@@ -922,7 +1010,7 @@
                     .then(res => res.json())
                     .then(list => {
                         const cur = list.find(c => c.id === currentCanvasID);
-                        selectCanvas(currentCanvasID, cur ? cur.width : 800, cur ? cur.height : 480);
+                        selectCanvas(currentCanvasID, cur ? cur.width : 800, cur ? cur.height : 480, cur);
                     });
             })
             .catch(err => showToast("Failed to save widget configs: " + err));

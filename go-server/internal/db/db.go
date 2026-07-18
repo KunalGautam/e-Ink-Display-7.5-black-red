@@ -56,7 +56,10 @@ func InitDB(dbPath string) (*DB, error) {
 			width INTEGER,
 			height INTEGER,
 			color_mode TEXT,
-			timezone TEXT
+			timezone TEXT,
+			mqtt_broker TEXT DEFAULT '',
+			mqtt_username TEXT DEFAULT '',
+			mqtt_password TEXT DEFAULT ''
 		);`,
 		`CREATE TABLE IF NOT EXISTS widgets (
 			id TEXT PRIMARY KEY,
@@ -90,6 +93,9 @@ func InitDB(dbPath string) (*DB, error) {
 	// Migrate existing database schemas if columns are missing
 	_, _ = db.Exec("ALTER TABLE widgets ADD COLUMN border_width INTEGER DEFAULT 0")
 	_, _ = db.Exec("ALTER TABLE widgets ADD COLUMN border_color TEXT DEFAULT ''")
+	_, _ = db.Exec("ALTER TABLE canvases ADD COLUMN mqtt_broker TEXT DEFAULT ''")
+	_, _ = db.Exec("ALTER TABLE canvases ADD COLUMN mqtt_username TEXT DEFAULT ''")
+	_, _ = db.Exec("ALTER TABLE canvases ADD COLUMN mqtt_password TEXT DEFAULT ''")
 
 	d := &DB{conn: db}
 	if err := d.initDefaultSettings(); err != nil {
@@ -332,11 +338,14 @@ func (d *DB) GetCachedEmails() ([]EmailRecord, error) {
 }
 
 type CanvasRecord struct {
-	ID        string `json:"id"`
-	Width     int    `json:"width"`
-	Height    int    `json:"height"`
-	ColorMode string `json:"color_mode"`
-	Timezone  string `json:"timezone"`
+	ID           string `json:"id"`
+	Width        int    `json:"width"`
+	Height       int    `json:"height"`
+	ColorMode    string `json:"color_mode"`
+	Timezone     string `json:"timezone"`
+	MQTTBroker   string `json:"mqtt_broker"`
+	MQTTUsername string `json:"mqtt_username"`
+	MQTTPassword string `json:"mqtt_password"`
 }
 
 type WidgetRecord struct {
@@ -362,15 +371,15 @@ type WidgetRecord struct {
 func (d *DB) SaveCanvas(c CanvasRecord) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	_, err := d.conn.Exec("INSERT OR REPLACE INTO canvases (id, width, height, color_mode, timezone) VALUES (?, ?, ?, ?, ?)",
-		c.ID, c.Width, c.Height, c.ColorMode, c.Timezone)
+	_, err := d.conn.Exec("INSERT OR REPLACE INTO canvases (id, width, height, color_mode, timezone, mqtt_broker, mqtt_username, mqtt_password) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		c.ID, c.Width, c.Height, c.ColorMode, c.Timezone, c.MQTTBroker, c.MQTTUsername, c.MQTTPassword)
 	return err
 }
 
 func (d *DB) GetCanvas(id string) (*CanvasRecord, error) {
 	var c CanvasRecord
-	err := d.conn.QueryRow("SELECT id, width, height, color_mode, timezone FROM canvases WHERE id = ?", id).
-		Scan(&c.ID, &c.Width, &c.Height, &c.ColorMode, &c.Timezone)
+	err := d.conn.QueryRow("SELECT id, width, height, color_mode, timezone, mqtt_broker, mqtt_username, mqtt_password FROM canvases WHERE id = ?", id).
+		Scan(&c.ID, &c.Width, &c.Height, &c.ColorMode, &c.Timezone, &c.MQTTBroker, &c.MQTTUsername, &c.MQTTPassword)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -381,7 +390,7 @@ func (d *DB) GetCanvas(id string) (*CanvasRecord, error) {
 }
 
 func (d *DB) ListCanvases() ([]CanvasRecord, error) {
-	rows, err := d.conn.Query("SELECT id, width, height, color_mode, timezone FROM canvases")
+	rows, err := d.conn.Query("SELECT id, width, height, color_mode, timezone, mqtt_broker, mqtt_username, mqtt_password FROM canvases")
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +399,7 @@ func (d *DB) ListCanvases() ([]CanvasRecord, error) {
 	var list []CanvasRecord
 	for rows.Next() {
 		var c CanvasRecord
-		if err := rows.Scan(&c.ID, &c.Width, &c.Height, &c.ColorMode, &c.Timezone); err != nil {
+		if err := rows.Scan(&c.ID, &c.Width, &c.Height, &c.ColorMode, &c.Timezone, &c.MQTTBroker, &c.MQTTUsername, &c.MQTTPassword); err != nil {
 			return nil, err
 		}
 		list = append(list, c)

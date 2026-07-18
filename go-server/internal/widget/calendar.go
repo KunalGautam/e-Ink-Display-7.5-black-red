@@ -66,11 +66,11 @@ func (w *CalendarWidget) Render(ctx context.Context, rCtx *RenderContext) error 
 		if d == today {
 			// Highlight today
 			rCtx.Ctx.SetHexColor(accentColor)
-			rCtx.Ctx.DrawCircle(cx, cy-3, 11)
+			rCtx.Ctx.DrawCircle(cx, cy, 12)
 			rCtx.Ctx.Fill()
 
 			rCtx.Ctx.SetHexColor("#FFFFFF")
-			rCtx.Ctx.DrawStringAnchored(strconv.Itoa(d), cx, cy-3, 0.5, 0.5)
+			rCtx.Ctx.DrawStringAnchored(strconv.Itoa(d), cx, cy, 0.5, 0.5)
 		} else {
 			rCtx.Ctx.SetHexColor(rCtx.ColorFG)
 			rCtx.Ctx.DrawStringAnchored(strconv.Itoa(d), cx, cy, 0.5, 0.5)

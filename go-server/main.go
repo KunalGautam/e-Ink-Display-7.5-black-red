@@ -155,12 +155,15 @@ func main() {
 
 		if r.Method == http.MethodPost {
 			var input struct {
-				ID         string `json:"id"`
-				Width      int    `json:"width"`
-				Height     int    `json:"height"`
-				ColorMode  string `json:"color_mode"`
-				Timezone   string `json:"timezone"`
-				DeviceType string `json:"device_type"`
+				ID           string `json:"id"`
+				Width        int    `json:"width"`
+				Height       int    `json:"height"`
+				ColorMode    string `json:"color_mode"`
+				Timezone     string `json:"timezone"`
+				DeviceType   string `json:"device_type"`
+				MQTTBroker   string `json:"mqtt_broker"`
+				MQTTUsername string `json:"mqtt_username"`
+				MQTTPassword string `json:"mqtt_password"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 				http.Error(w, "Bad Request: "+err.Error(), http.StatusBadRequest)
@@ -210,11 +213,14 @@ func main() {
 			}
 
 			c := db.CanvasRecord{
-				ID:        input.ID,
-				Width:     input.Width,
-				Height:    input.Height,
-				ColorMode: input.ColorMode,
-				Timezone:  input.Timezone,
+				ID:           input.ID,
+				Width:        input.Width,
+				Height:       input.Height,
+				ColorMode:    input.ColorMode,
+				Timezone:     input.Timezone,
+				MQTTBroker:   input.MQTTBroker,
+				MQTTUsername: input.MQTTUsername,
+				MQTTPassword: input.MQTTPassword,
 			}
 
 			if err := database.SaveCanvas(c); err != nil {

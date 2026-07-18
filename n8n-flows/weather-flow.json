@@ -1,0 +1,69 @@
+{
+  "name": "E-Ink Display - Publish Weather",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-weather",
+      "name": "When clicking 'Execute Workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 240]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    \"weather\": {\n      \"temp\": 23.5,\n      \"condition\": \"Partly Cloudy\",\n      \"humidity\": 65,\n      \"pressure\": 1011.2,\n      \"wind_speed\": 4.8,\n      \"forecast\": [\n        {\"time\": \"10 AM\", \"temp\": 22.0, \"condition\": \"Sunny\"},\n        {\"time\": \"1 PM\", \"temp\": 24.5, \"condition\": \"Partly Cloudy\"},\n        {\"time\": \"4 PM\", \"temp\": 23.0, \"condition\": \"Cloudy\"},\n        {\"time\": \"7 PM\", \"temp\": 21.0, \"condition\": \"Rainy\"}\n      ]\n    }\n  }\n];"
+      },
+      "id": "code-weather-data",
+      "name": "Format Weather Object",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 240]
+    },
+    {
+      "parameters": {
+        "broker": "tcp://100.101.102.4:1883",
+        "topic": "home/eink/weather",
+        "sendInputData": false,
+        "message": "={{ JSON.stringify($json.weather) }}",
+        "options": {
+          "qos": 1,
+          "retain": true
+        }
+      },
+      "id": "mqtt-publish-weather",
+      "name": "MQTT Publish Weather",
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [540, 240]
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute Workflow'": {
+      "main": [
+        [
+          {
+            "node": "Format Weather Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Weather Object": {
+      "main": [
+        [
+          {
+            "node": "MQTT Publish Weather",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

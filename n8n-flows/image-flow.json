@@ -1,0 +1,69 @@
+{
+  "name": "E-Ink Display - Publish Image",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-image",
+      "name": "When clicking 'Execute Workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 240]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    \"image\": {\n      \"url\": \"https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=300&auto=format&fit=crop\"\n    }\n  }\n];"
+      },
+      "id": "code-image-data",
+      "name": "Format Image Object",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 240]
+    },
+    {
+      "parameters": {
+        "broker": "tcp://100.101.102.4:1883",
+        "topic": "home/eink/image",
+        "sendInputData": false,
+        "message": "={{ JSON.stringify($json.image) }}",
+        "options": {
+          "qos": 1,
+          "retain": true
+        }
+      },
+      "id": "mqtt-publish-image",
+      "name": "MQTT Publish Image",
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [540, 240]
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute Workflow'": {
+      "main": [
+        [
+          {
+            "node": "Format Image Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Image Object": {
+      "main": [
+        [
+          {
+            "node": "MQTT Publish Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

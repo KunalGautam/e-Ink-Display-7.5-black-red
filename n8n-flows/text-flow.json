@@ -1,0 +1,69 @@
+{
+  "name": "E-Ink Display - Publish Text",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-text",
+      "name": "When clicking 'Execute Workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [100, 240]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    \"text\": \"Living Room Temp: 24.5°C\\nHumidity: 62%\\nStatus: All Systems Normal\"\n  }\n];"
+      },
+      "id": "code-text-data",
+      "name": "Format Text Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 240]
+    },
+    {
+      "parameters": {
+        "broker": "tcp://100.101.102.4:1883",
+        "topic": "home/eink/text",
+        "sendInputData": false,
+        "message": "={{ $json.text }}",
+        "options": {
+          "qos": 1,
+          "retain": true
+        }
+      },
+      "id": "mqtt-publish-text",
+      "name": "MQTT Publish Text",
+      "type": "n8n-nodes-base.mqtt",
+      "typeVersion": 1,
+      "position": [540, 240]
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute Workflow'": {
+      "main": [
+        [
+          {
+            "node": "Format Text Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Text Payload": {
+      "main": [
+        [
+          {
+            "node": "MQTT Publish Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

@@ -87,6 +87,7 @@ func (d *DB) initDefaultSettings() error {
 		"notes_topic":    "home/eink/notes",
 		"emails_topic":   "home/eink/emails",
 		"calendar_topic": "home/eink/calendar",
+		"weather_topic":  "home/eink/weather",
 		"auth_username":  "admin",
 		"font_family":     "Mukta",
 		"layout_style":    "default",

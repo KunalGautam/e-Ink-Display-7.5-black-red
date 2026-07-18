@@ -123,11 +123,10 @@ func (c *Client) Connect() error {
 		}
 
 		// Subscribe to weather
-		weatherTopic := "home/eink/weather"
-		if token := client.Subscribe(weatherTopic, 1, c.handleWeatherMsg); token.Wait() && token.Error() != nil {
-			log.Printf("Failed to subscribe to weather topic %s: %v", weatherTopic, token.Error())
+		if token := client.Subscribe(c.cfg.WeatherTopic, 1, c.handleWeatherMsg); token.Wait() && token.Error() != nil {
+			log.Printf("Failed to subscribe to weather topic %s: %v", c.cfg.WeatherTopic, token.Error())
 		} else {
-			log.Printf("Subscribed to weather topic: %s", weatherTopic)
+			log.Printf("Subscribed to weather topic: %s", c.cfg.WeatherTopic)
 		}
 	})
 

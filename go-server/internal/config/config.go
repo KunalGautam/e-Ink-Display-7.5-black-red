@@ -15,6 +15,7 @@ type Config struct {
 	NotesTopic    string `yaml:"notes_topic"`
 	EmailsTopic   string `yaml:"emails_topic"`
 	CalendarTopic string `yaml:"calendar_topic"`
+	WeatherTopic  string `yaml:"weather_topic"`
 	ICalURL       string `yaml:"ical_url"`
 	Timezone      string `yaml:"timezone"`
 	Port          string `yaml:"port"`
@@ -41,6 +42,7 @@ func LoadConfig(path string) (*Config, error) {
 		NotesTopic:    "home/eink/notes",
 		EmailsTopic:   "home/eink/emails",
 		CalendarTopic: "home/eink/calendar",
+		WeatherTopic:  "home/eink/weather",
 		Timezone:      "Asia/Kolkata",
 		Port:          "8080",
 		Width:         800,

@@ -33,6 +33,7 @@ type settingsAPIModel struct {
 	NotesTopic    string `json:"notes_topic"`
 	EmailsTopic   string `json:"emails_topic"`
 	CalendarTopic string `json:"calendar_topic"`
+	WeatherTopic  string `json:"weather_topic"`
 	ICalURL       string `json:"ical_url"`
 	Timezone      string `json:"timezone"`
 	Port          string `json:"port"`
@@ -302,6 +303,7 @@ func main() {
 			_ = database.SaveSetting("notes_topic", model.NotesTopic)
 			_ = database.SaveSetting("emails_topic", model.EmailsTopic)
 			_ = database.SaveSetting("calendar_topic", model.CalendarTopic)
+			_ = database.SaveSetting("weather_topic", model.WeatherTopic)
 			_ = database.SaveSetting("ical_url", model.ICalURL)
 			_ = database.SaveSetting("timezone", model.Timezone)
 			_ = database.SaveSetting("port", model.Port)
@@ -343,6 +345,10 @@ func main() {
 		notesTopic, _ := database.GetSetting("notes_topic")
 		emailsTopic, _ := database.GetSetting("emails_topic")
 		calTopic, _ := database.GetSetting("calendar_topic")
+		weatherTopic, _ := database.GetSetting("weather_topic")
+		if weatherTopic == "" {
+			weatherTopic = "home/eink/weather"
+		}
 		icalUrl, _ := database.GetSetting("ical_url")
 		timezone, _ := database.GetSetting("timezone")
 		port, _ := database.GetSetting("port")
@@ -383,6 +389,7 @@ func main() {
 			NotesTopic:    notesTopic,
 			EmailsTopic:   emailsTopic,
 			CalendarTopic: calTopic,
+			WeatherTopic:  weatherTopic,
 			ICalURL:       icalUrl,
 			Timezone:      timezone,
 			Port:          port,
@@ -476,6 +483,7 @@ func loadConfigWithDB(database *db.DB, configPath string) (*config.Config, error
 		_ = database.SaveSetting("notes_topic", cfg.NotesTopic)
 		_ = database.SaveSetting("emails_topic", cfg.EmailsTopic)
 		_ = database.SaveSetting("calendar_topic", cfg.CalendarTopic)
+		_ = database.SaveSetting("weather_topic", cfg.WeatherTopic)
 		_ = database.SaveSetting("ical_url", cfg.ICalURL)
 		_ = database.SaveSetting("timezone", cfg.Timezone)
 		_ = database.SaveSetting("port", cfg.Port)
@@ -517,6 +525,10 @@ func loadConfigWithDB(database *db.DB, configPath string) (*config.Config, error
 	}
 	if val, err := database.GetSetting("calendar_topic"); err == nil {
 		cfg.CalendarTopic = val
+	}
+	cfg.WeatherTopic, _ = database.GetSetting("weather_topic")
+	if cfg.WeatherTopic == "" {
+		cfg.WeatherTopic = "home/eink/weather"
 	}
 	if val, err := database.GetSetting("ical_url"); err == nil {
 		cfg.ICalURL = val

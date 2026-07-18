@@ -66,6 +66,24 @@ Expects a JSON array of daily event objects. Displayed in the "SCHEDULE" section
 ]
 ```
 
+### 4. Topic: `home/eink/weather`
+Expects a JSON object detailing current weather observations and forecast increments. Highly recommended for weather layouts:
+```json
+{
+  "temp": 23.5,
+  "condition": "Partly Cloudy",
+  "humidity": 65,
+  "pressure": 1011.2,
+  "wind_speed": 4.8,
+  "forecast": [
+    {"time": "10 AM", "temp": 22.0, "condition": "Sunny"},
+    {"time": "1 PM", "temp": 24.5, "condition": "Partly Cloudy"},
+    {"time": "4 PM", "temp": 23.0, "condition": "Cloudy"},
+    {"time": "7 PM", "temp": 21.0, "condition": "Rainy"}
+  ]
+}
+```
+
 ---
 
 ## Go API Server Setup

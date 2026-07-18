@@ -564,6 +564,17 @@
                             <input type="text" id="w_mqtt_topic" placeholder="home/eink/widget_data">
                         </div>
 
+                        <!-- Calendar Configuration Helper -->
+                        <div class="form-group form-group-full" id="calendar_builder_group" style="display: none; border-top: 1px dashed var(--card-border); padding-top: 1rem; margin-top: 0.5rem;">
+                            <label style="color: var(--accent-color); font-weight: bold; margin-bottom: 0.5rem;">📅 Calendar Settings</label>
+                            <div class="form-grid">
+                                <div class="form-group form-group-full">
+                                    <label for="cal_circle_padding">Circle Padding (px)</label>
+                                    <input type="number" id="cal_circle_padding" value="3" min="-5" max="15" step="0.5" oninput="updateCalendarJSON()">
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Container Grid Builder Section -->
                         <div class="form-group form-group-full" id="container_builder_group" style="display: none; border-top: 1px dashed var(--card-border); padding-top: 1rem; margin-top: 0.5rem;">
                             <label style="color: var(--accent-color); font-weight: bold; margin-bottom: 0.5rem;">📦 Container Grid Builder</label>
@@ -1066,12 +1077,24 @@
             document.getElementById('w_custom_config').value = JSON.stringify(payload, null, 2);
         }
 
+        function updateCalendarJSON() {
+            const padding = parseFloat(document.getElementById('cal_circle_padding').value);
+            const payload = {
+                padding: isNaN(padding) ? 3.0 : padding
+            };
+            document.getElementById('w_custom_config').value = JSON.stringify(payload, null, 2);
+        }
+
         function toggleWidgetTypeFields() {
             const type = document.getElementById('widget_type').value;
             const customGroup = document.getElementById('custom_config_group');
             const containerGroup = document.getElementById('container_builder_group');
+            const calendarGroup = document.getElementById('calendar_builder_group');
             const topicInput = document.getElementById('w_mqtt_topic');
             const brokerInput = document.getElementById('w_mqtt_broker');
+
+            containerGroup.style.display = 'none';
+            calendarGroup.style.display = 'none';
 
             if (type === 'container') {
                 containerGroup.style.display = 'block';
@@ -1100,10 +1123,20 @@
                 buildContainerForm(children);
                 topicInput.removeAttribute('required');
             } else {
-                containerGroup.style.display = 'none';
                 customGroup.style.display = 'block';
                 if (type === 'calendar') {
+                    calendarGroup.style.display = 'block';
                     customGroup.style.display = 'none';
+                    
+                    let padding = 3.0;
+                    try {
+                        const rawJson = document.getElementById('w_custom_config').value;
+                        if (rawJson) {
+                            const parsed = JSON.parse(rawJson);
+                            padding = parsed.padding !== undefined ? parsed.padding : 3.0;
+                        }
+                    } catch(e) {}
+                    document.getElementById('cal_circle_padding').value = padding;
                     topicInput.removeAttribute('required');
                 } else if (type === 'datetime') {
                     document.getElementById('w_custom_config').placeholder = '{"format": "03:04 PM"}';

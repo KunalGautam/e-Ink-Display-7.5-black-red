@@ -2,6 +2,7 @@ package widget
 
 import (
 	"context"
+	"encoding/json"
 	"math"
 	"strconv"
 	"time"
@@ -19,6 +20,16 @@ func (w *CalendarWidget) Render(ctx context.Context, rCtx *RenderContext) error 
 
 	now := time.Now().In(loc)
 	year, month, today := now.Date()
+
+	paddingVal := 3.0
+	if rCtx.CustomConfig != "" {
+		var cfg struct {
+			Padding *float64 `json:"padding"`
+		}
+		if err := json.Unmarshal([]byte(rCtx.CustomConfig), &cfg); err == nil && cfg.Padding != nil {
+			paddingVal = *cfg.Padding
+		}
+	}
 
 	// Title
 	rCtx.Ctx.SetHexColor(rCtx.ColorFG)
@@ -90,7 +101,7 @@ func (w *CalendarWidget) Render(ctx context.Context, rCtx *RenderContext) error 
 				circleY = cy + (minY + maxY)/2.0
 
 				// Calculate radius based on visual bounding box plus padding
-				radius = math.Max(visualWidth, visualHeight)/2.0 + 3.0
+				radius = math.Max(visualWidth, visualHeight)/2.0 + paddingVal
 				if radius < 11 {
 					radius = 11
 				}

@@ -51,16 +51,27 @@ func (w *CalendarWidget) Render(ctx context.Context, rCtx *RenderContext) error 
 		}
 	}
 
+	rowHeight := rCtx.LineHeight
+	if rowHeight <= 0 {
+		rowHeight = 24.0
+		if float64(rCtx.Height) > 180 {
+			rowHeight = 28.0
+		}
+	}
+
+	titleY := rowHeight * 0.7
+	weekdaysY := titleY + rowHeight * 0.8
+	firstRowY := weekdaysY + rowHeight * 0.8
+
 	// Title
 	rCtx.Ctx.SetHexColor(rCtx.ColorFG)
 	titleStr := now.Format("January 2006")
-	rCtx.Ctx.DrawStringAnchored(titleStr, float64(rCtx.Width)/2, 20, 0.5, 0.5)
+	rCtx.Ctx.DrawStringAnchored(titleStr, float64(rCtx.Width)/2, titleY, 0.5, 0.5)
 
 	// Weekdays
 	weekdays := []string{"S", "M", "T", "W", "T", "F", "S"}
 	cellWidth := float64(rCtx.Width) / 7
-	calendarTop := 40.0
-	
+
 	// Draw weekday labels in red if BWR supported, otherwise foreground
 	accentColor := "#FF0000"
 	if rCtx.ColorMode == "mono" {
@@ -69,7 +80,7 @@ func (w *CalendarWidget) Render(ctx context.Context, rCtx *RenderContext) error 
 	rCtx.Ctx.SetHexColor(accentColor)
 	for i, wd := range weekdays {
 		cx := float64(i)*cellWidth + cellWidth/2
-		rCtx.Ctx.DrawStringAnchored(wd, cx, calendarTop, 0.5, 0.5)
+		rCtx.Ctx.DrawStringAnchored(wd, cx, weekdaysY, 0.5, 0.5)
 	}
 
 	// Calculate monthly grid
@@ -80,21 +91,13 @@ func (w *CalendarWidget) Render(ctx context.Context, rCtx *RenderContext) error 
 	lastDay := nextMonth.AddDate(0, 0, -1)
 	numDays := lastDay.Day()
 
-	rowHeight := rCtx.LineHeight
-	if rowHeight <= 0 {
-		rowHeight = 24.0
-		if float64(rCtx.Height) > 180 {
-			rowHeight = 28.0
-		}
-	}
-
 	for d := 1; d <= numDays; d++ {
 		cellIdx := d - 1 + startWeekday
 		col := cellIdx % 7
 		row := cellIdx / 7
 
 		cx := float64(col)*cellWidth + cellWidth/2
-		cy := calendarTop + 20 + float64(row)*rowHeight
+		cy := firstRowY + float64(row)*rowHeight
 
 		if cy > float64(rCtx.Height)-10 {
 			break

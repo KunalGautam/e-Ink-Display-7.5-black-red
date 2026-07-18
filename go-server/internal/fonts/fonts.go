@@ -89,7 +89,7 @@ func extractTTFURLFromCSS(cssURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; AS; rv:11.0) like Gecko")
+	// By default, not specifying a modern browser User-Agent forces Google Fonts to return .ttf urls
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

@@ -527,7 +527,14 @@ def main():
             right_col_width = width - right_col_x - 20
             
             weather_city = data.get("weather_city", "New Delhi,IN")
-            draw.text((right_col_x, 25), f"📍 {weather_city}", fill=(0, 0, 0), font=font_header)
+            # Draw a custom vector location pin in red
+            pin_x = right_col_x + 5
+            pin_y = 23
+            draw.ellipse([pin_x, pin_y, pin_x + 10, pin_y + 10], fill=(255, 0, 0))
+            draw.polygon([(pin_x + 1, pin_y + 8), (pin_x + 9, pin_y + 8), (pin_x + 5, pin_y + 15)], fill=(255, 0, 0))
+            draw.ellipse([pin_x + 3, pin_y + 3, pin_x + 7, pin_y + 7], fill=(255, 255, 255))
+            
+            draw.text((right_col_x + 24, 21), weather_city, fill=(0, 0, 0), font=font_header)
             draw.line([right_col_x - 10, 49, width - 20, 49], fill=(0, 0, 0), width=1)
             
             # Weather forecasts table list (5 days)

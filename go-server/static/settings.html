@@ -595,6 +595,21 @@
                             </div>
                         </div>
 
+                        <!-- Image Configuration Helper -->
+                        <div class="form-group form-group-full" id="image_builder_group" style="display: none; border-top: 1px dashed var(--card-border); padding-top: 1rem; margin-top: 0.5rem;">
+                            <label style="color: var(--accent-color); font-weight: bold; margin-bottom: 0.5rem;">🖼️ Image Settings</label>
+                            <div class="form-grid">
+                                <div class="form-group form-group-full">
+                                    <label for="img_file_upload">Upload Image (Auto-converts to Base64)</label>
+                                    <input type="file" id="img_file_upload" accept="image/*" onchange="handleImageUpload(event)">
+                                </div>
+                                <div class="form-group form-group-full">
+                                    <label for="img_url_input">Or Image URL</label>
+                                    <input type="text" id="img_url_input" placeholder="https://example.com/photo.jpg" oninput="updateImageJSON()">
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Container Grid Builder Section -->
                         <div class="form-group form-group-full" id="container_builder_group" style="display: none; border-top: 1px dashed var(--card-border); padding-top: 1rem; margin-top: 0.5rem;">
                             <label style="color: var(--accent-color); font-weight: bold; margin-bottom: 0.5rem;">📦 Container Grid Builder</label>
@@ -1116,16 +1131,45 @@
             document.getElementById('w_custom_config').value = JSON.stringify(payload, null, 2);
         }
 
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Str = e.target.result;
+                const payload = {
+                    base64: base64Str
+                };
+                document.getElementById('w_custom_config').value = JSON.stringify(payload, null, 2);
+                document.getElementById('img_url_input').value = ""; // Clear URL if uploading file
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function updateImageJSON() {
+            const url = document.getElementById('img_url_input').value;
+            if (url) {
+                const payload = {
+                    url: url
+                };
+                document.getElementById('w_custom_config').value = JSON.stringify(payload, null, 2);
+                document.getElementById('img_file_upload').value = ""; // Clear file if entering URL
+            }
+        }
+
         function toggleWidgetTypeFields() {
             const type = document.getElementById('widget_type').value;
             const customGroup = document.getElementById('custom_config_group');
             const containerGroup = document.getElementById('container_builder_group');
             const calendarGroup = document.getElementById('calendar_builder_group');
+            const imageGroup = document.getElementById('image_builder_group');
             const topicInput = document.getElementById('w_mqtt_topic');
             const brokerInput = document.getElementById('w_mqtt_broker');
 
             containerGroup.style.display = 'none';
             calendarGroup.style.display = 'none';
+            imageGroup.style.display = 'none';
 
             if (type === 'container') {
                 containerGroup.style.display = 'block';
@@ -1177,13 +1221,25 @@
                     document.getElementById('cal_text_offset_x').value = tx;
                     document.getElementById('cal_text_offset_y').value = ty;
                     topicInput.removeAttribute('required');
+                } else if (type === 'image') {
+                    imageGroup.style.display = 'block';
+                    customGroup.style.display = 'none';
+                    
+                    let url = "";
+                    try {
+                        const rawJson = document.getElementById('w_custom_config').value;
+                        if (rawJson) {
+                            const parsed = JSON.parse(rawJson);
+                            url = parsed.url || "";
+                        }
+                    } catch(e) {}
+                    document.getElementById('img_url_input').value = url;
+                    document.getElementById('img_file_upload').value = "";
                 } else if (type === 'datetime') {
                     document.getElementById('w_custom_config').placeholder = '{"format": "03:04 PM"}';
                     topicInput.removeAttribute('required');
                 } else if (type === 'text') {
                     document.getElementById('w_custom_config').placeholder = '{"text": "Your static text"}';
-                } else if (type === 'image') {
-                    document.getElementById('w_custom_config').placeholder = '{"url": "https://..."}';
                 }
             }
         }

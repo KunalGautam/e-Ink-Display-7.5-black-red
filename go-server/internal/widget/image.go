@@ -8,6 +8,7 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"image/color"
 	"net/http"
 	"strings"
 
@@ -63,6 +64,8 @@ func (w *ImageWidget) Render(ctx context.Context, rCtx *RenderContext) error {
 	dst := image.NewRGBA(rect)
 	draw.CatmullRom.Scale(dst, rect, src, src.Bounds(), draw.Over, nil)
 
+	processImageForColorMode(dst, rCtx.ColorMode)
+
 	rCtx.Ctx.DrawImage(dst, 0, 0)
 	return nil
 }
@@ -85,4 +88,34 @@ func downloadImage(urlStr string) (image.Image, error) {
 
 	img, _, err := image.Decode(resp.Body)
 	return img, err
+}
+
+func processImageForColorMode(src *image.RGBA, colorMode string) {
+	bounds := src.Bounds()
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			c := src.RGBAAt(x, y)
+			r := float64(c.R)
+			g := float64(c.G)
+			b := float64(c.B)
+
+			if colorMode == "bwr" {
+				// Quantize to Black, White, Red based on same thresholds in canvas.go
+				isRed := c.R > 150 && c.G < 100 && c.B < 100
+				isDark := c.R < 120 && c.G < 120 && c.B < 120
+
+				if isRed {
+					src.SetRGBA(x, y, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+				} else if isDark {
+					src.SetRGBA(x, y, color.RGBA{R: 0, G: 0, B: 0, A: 255})
+				} else {
+					src.SetRGBA(x, y, color.RGBA{R: 255, G: 255, B: 255, A: 255})
+				}
+			} else {
+				// Convert to Grayscale for Mono
+				gray := uint8(0.299*r + 0.587*g + 0.114*b)
+				src.SetRGBA(x, y, color.RGBA{R: gray, G: gray, B: gray, A: 255})
+			}
+		}
+	}
 }

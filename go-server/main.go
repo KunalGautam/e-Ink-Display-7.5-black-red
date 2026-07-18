@@ -9,259 +9,325 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sort"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	"epaper-display/go-server/internal/calendar"
+	"golang.org/x/crypto/bcrypt"
+
+	"epaper-display/go-server/internal/canvas"
 	"epaper-display/go-server/internal/config"
 	"epaper-display/go-server/internal/db"
+	"epaper-display/go-server/internal/fonts"
 	"epaper-display/go-server/internal/mqtt"
-	"epaper-display/go-server/internal/renderer"
-	"epaper-display/go-server/internal/weather"
-
-	"golang.org/x/crypto/bcrypt"
 )
-
-type settingsAPIModel struct {
-	MQTTBroker    string `json:"mqtt_broker"`
-	MQTTClientID  string `json:"mqtt_client_id"`
-	MQTTUsername  string `json:"mqtt_username"`
-	MQTTPassword  string `json:"mqtt_password"`
-	NotesTopic    string `json:"notes_topic"`
-	EmailsTopic   string `json:"emails_topic"`
-	CalendarTopic string `json:"calendar_topic"`
-	WeatherTopic  string `json:"weather_topic"`
-	ICalURL       string `json:"ical_url"`
-	Timezone      string `json:"timezone"`
-	Port          string `json:"port"`
-	Width         int    `json:"width"`
-	Height        int    `json:"height"`
-	FontFamily    string `json:"font_family"`
-	LayoutStyle   string `json:"layout_style"`
-	ShowCalendar  bool   `json:"show_calendar"`
-	ShowSchedule  bool   `json:"show_schedule"`
-	ShowInbox     bool   `json:"show_inbox"`
-	ShowNotes     bool   `json:"show_notes"`
-	ShowWeather   bool   `json:"show_weather"`
-	ShowSensors   bool   `json:"show_sensors"`
-	WeatherAPIKey string `json:"weather_api_key"`
-	WeatherCity   string `json:"weather_city"`
-	AuthUsername  string `json:"auth_username"`
-	AuthPassword  string `json:"auth_password,omitempty"`
-}
 
 func main() {
 	// Parse CLI flags
 	configPath := flag.String("config", "config.yaml", "Path to YAML configuration file")
 	flag.Parse()
 
-	log.Println("Starting E-Ink Layout Server with Devanagari & Calendar support...")
-
-	// 1. Initialize SQLite Database
-	dbPath := "epaper.db"
-	if envDir := os.Getenv("DATA_DIR"); envDir != "" {
-		dbPath = envDir + "/epaper.db"
-	}
+	// Initialize SQLite Database
+	dbPath := "./epaper.db"
 	database, err := db.InitDB(dbPath)
 	if err != nil {
 		log.Fatalf("Error initializing SQLite database: %v", err)
 	}
 	defer database.Close()
 
-	// 2. Load configuration from DB with file/env fallback
+	// Load configuration from DB
 	cfg, err := loadConfigWithDB(database, *configPath)
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}
-	log.Printf("Configuration loaded successfully (Port: %s, Display: %dx%d)", cfg.Port, cfg.Width, cfg.Height)
+	log.Printf("Configuration loaded successfully (Port: %s)", cfg.Port)
 
-	// 3. Ensure Fonts are Downloaded (Saves selected font family locally)
-	regPath, boldPath, err := renderer.EnsureFontsDownloaded(cfg.FontFamily)
-	if err != nil {
-		log.Fatalf("Error downloading/loading fonts: %v", err)
-	}
+	// Pre-populate default canvas if database is empty/clean
+	initDefaultCanvas(database)
 
-	// 4. Initialize Weather Client
-	weatherClient := weather.NewWeatherClient()
+	// Initialize dynamic connection MQTT registry
+	mqttRegistry := mqtt.NewRegistry()
+	defer mqttRegistry.Close()
 
-	// 5. Initialize MQTT Client (pre-populates cache from DB on creation) and Connect
-	mqttClient := mqtt.NewClient(cfg, database, weatherClient)
-	if err := mqttClient.Connect(); err != nil {
-		log.Printf("Warning: Failed to connect to MQTT broker initially: %v. Reconnection will be attempted in the background.", err)
-	}
-	defer mqttClient.Disconnect()
-
-	// 6. Start OpenWeatherMap Sync Loop if key is configured
-	if cfg.WeatherAPIKey != "" {
-		go func() {
-			log.Println("Performing initial OpenWeatherMap fetch...")
-			if err := weatherClient.FetchOpenWeatherMap(cfg.WeatherAPIKey, cfg.WeatherCity); err != nil {
-				log.Printf("OpenWeatherMap fetch error: %v", err)
-			}
-
-			ticker := time.NewTicker(15 * time.Minute)
-			defer ticker.Stop()
-			for range ticker.C {
-				log.Println("Fetching weather from OpenWeatherMap...")
-				if err := weatherClient.FetchOpenWeatherMap(cfg.WeatherAPIKey, cfg.WeatherCity); err != nil {
-					log.Printf("OpenWeatherMap fetch error: %v", err)
-				}
-			}
-		}()
-	}
-
-	// 7. Initialize Google Calendar iCal Client & Sync Loop
-	icalClient := calendar.NewICalClient(cfg)
-	if cfg.ICalURL != "" {
-		go func() {
-			log.Println("Performing initial Google Calendar sync...")
-			if err := icalClient.Sync(); err != nil {
-				log.Printf("Google Calendar sync error: %v", err)
-			}
-
-			ticker := time.NewTicker(15 * time.Minute)
-			defer ticker.Stop()
-			for range ticker.C {
-				log.Println("Syncing Google Calendar events...")
-				if err := icalClient.Sync(); err != nil {
-					log.Printf("Google Calendar sync error: %v", err)
-				}
-			}
-		}()
-	} else {
-		log.Println("No Google Calendar ical_url configured. Skipping background sync.")
-	}
-
-	// 6. Initialize Renderer
-	rend := renderer.NewRenderer(cfg, regPath, boldPath)
-
-	// Helper to merge and sort calendar events
-	mergeEvents := func() []mqtt.CalendarEvent {
-		mqttEvents := mqttClient.GetCalendarEvents()
-		icalEvents := icalClient.GetEvents()
-
-		// Merge
-		var merged []mqtt.CalendarEvent
-		merged = append(merged, mqttEvents...)
-		merged = append(merged, icalEvents...)
-
-		// Assign default start time if zero (defaults to today's start)
-		tz := icalClient.GetTimezone()
-		now := time.Now().In(tz)
-		todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, tz)
-		for i := range merged {
-			if merged[i].Start.IsZero() {
-				merged[i].Start = todayStart
+	// Pre-load MQTT subscriptions for existing widgets
+	widgets, err := database.GetAllWidgets()
+	if err == nil {
+		for _, w := range widgets {
+			if w.MQTTTopic != "" {
+				go func(broker, topic string) {
+					_ = mqttRegistry.Subscribe(broker, topic, "", "")
+				}(w.MQTTBroker, w.MQTTTopic)
 			}
 		}
-
-		// Sort chronologically by start time
-		sort.Slice(merged, func(i, j int) bool {
-			if merged[i].Start.Equal(merged[j].Start) {
-				isAllDayI := strings.Contains(merged[i].Time, "All Day")
-				isAllDayJ := strings.Contains(merged[j].Time, "All Day")
-				if isAllDayI && !isAllDayJ {
-					return true
-				}
-				if isAllDayJ && !isAllDayI {
-					return false
-				}
-			}
-			return merged[i].Start.Before(merged[j].Start)
-		})
-
-		return merged
 	}
 
-	// 7. Setup HTTP router
+	// Initialize Google Fonts downloader and caching engine
+	fontCache := fonts.NewCache("./assets/fonts")
+
+	// Initialize Canvas drawing and binarization renderer
+	canvasRenderer := canvas.NewRenderer(database, mqttRegistry, fontCache)
+
+	// HTTP Routing Registry
 	mux := http.NewServeMux()
 
-	// REST endpoint to get PNG formatted image layout (no auth for physical displays)
-	mux.HandleFunc("/image", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("HTTP /image requested by %s", r.RemoteAddr)
-
-		notes := mqttClient.GetNotes()
-		emails := mqttClient.GetEmails()
-		calEvents := mergeEvents()
-
-		lastUpdated := mqttClient.GetLastUpdated()
-		if cfg.ICalURL != "" {
-			icalUpdated := icalClient.GetLastUpdated()
-			if icalUpdated.After(lastUpdated) {
-				lastUpdated = icalUpdated
-			}
-		}
-		weatherUpdated := weatherClient.GetLastUpdated()
-		if weatherUpdated.After(lastUpdated) {
-			lastUpdated = weatherUpdated
-		}
-		lastUpdatedStr := lastUpdated.Format("2006-01-02 15:04:05")
-
-		img, err := rend.Render(notes, emails, calEvents, weatherClient.GetWeather(), lastUpdatedStr)
-		if err != nil {
-			log.Printf("Render error: %v", err)
-			http.Error(w, "Failed to render layout", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "image/png")
-		if err := png.Encode(w, img); err != nil {
-			log.Printf("PNG encoding error: %v", err)
-			http.Error(w, "Failed to encode image", http.StatusInternalServerError)
-		}
+	// Health Check / Container Live-probing endpoint
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
 	})
-
-	// REST endpoint to get raw packed e-paper display bytes (no auth for physical displays)
-	mux.HandleFunc("/image/raw", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("HTTP /image/raw requested by %s", r.RemoteAddr)
-
-		notes := mqttClient.GetNotes()
-		emails := mqttClient.GetEmails()
-		calEvents := mergeEvents()
-
-		lastUpdated := mqttClient.GetLastUpdated()
-		if cfg.ICalURL != "" {
-			icalUpdated := icalClient.GetLastUpdated()
-			if icalUpdated.After(lastUpdated) {
-				lastUpdated = icalUpdated
-			}
-		}
-		weatherUpdated := weatherClient.GetLastUpdated()
-		if weatherUpdated.After(lastUpdated) {
-			lastUpdated = weatherUpdated
-		}
-		lastUpdatedStr := lastUpdated.Format("2006-01-02 15:04:05")
-
-		img, err := rend.Render(notes, emails, calEvents, weatherClient.GetWeather(), lastUpdatedStr)
-		if err != nil {
-			log.Printf("Render error: %v", err)
-			http.Error(w, "Failed to render layout", http.StatusInternalServerError)
-			return
-		}
-
-		// Pack into Waveshare bits
-		blackBuf, redBuf := renderer.PackBuffers(img)
-		payload := append(blackBuf, redBuf...)
-
-		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Header().Set("Content-Length", string(rune(len(payload))))
-		
-		if _, err := w.Write(payload); err != nil {
-			log.Printf("Failed writing raw payload bytes: %v", err)
-		}
-	})
-
-	// Health check endpoint
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	})
 
-	// Basic Auth Protected Settings Portal Page (GET /settings to view page, POST /settings to update)
+	// 1. GET /canvas/{id}/preview — returns standard debugging PNG preview
+	mux.HandleFunc("/canvas/", func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(r.URL.Path, "/")
+		if len(parts) < 4 {
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
+		}
+		canvasID := parts[2]
+		action := parts[3]
+
+		if action == "preview" {
+			log.Printf("Generating preview for canvas: %s", canvasID)
+			img, err := canvasRenderer.RenderCanvas(r.Context(), canvasID)
+			if err != nil {
+				log.Printf("Render error: %v", err)
+				http.Error(w, "Failed to render canvas image: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if img == nil {
+				http.Error(w, "Canvas not found", http.StatusNotFound)
+				return
+			}
+
+			w.Header().Set("Content-Type", "image/png")
+			if err := png.Encode(w, img); err != nil {
+				log.Printf("PNG encoding error: %v", err)
+			}
+			return
+		}
+
+		if action == "render" {
+			log.Printf("Rendering packed binary stream for canvas: %s", canvasID)
+			cRec, err := database.GetCanvas(canvasID)
+			if err != nil || cRec == nil {
+				http.Error(w, "Canvas profile not found", http.StatusNotFound)
+				return
+			}
+
+			img, err := canvasRenderer.RenderCanvas(r.Context(), canvasID)
+			if err != nil {
+				log.Printf("Render error: %v", err)
+				http.Error(w, "Failed to render canvas image: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Convert and pack pixels into active-low raw display formats
+			payload := canvas.PackBuffers(img, cRec.ColorMode)
+			w.Header().Set("Content-Type", "application/octet-stream")
+			w.Header().Set("Content-Length", strconv.Itoa(len(payload)))
+			_, _ = w.Write(payload)
+			return
+		}
+
+		http.Error(w, "Not Found", http.StatusNotFound)
+	})
+
+	// Basic Auth REST endpoints to manage canvases and widgets
+	// 2. GET /api/canvases & POST /api/canvas — canvases CRUD
+	mux.HandleFunc("/api/canvas", basicAuth(database, "Dashboard Admin", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			list, err := database.ListCanvases()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(list)
+			return
+		}
+
+		if r.Method == http.MethodPost {
+			var input struct {
+				ID         string `json:"id"`
+				Width      int    `json:"width"`
+				Height     int    `json:"height"`
+				ColorMode  string `json:"color_mode"`
+				Timezone   string `json:"timezone"`
+				DeviceType string `json:"device_type"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+				http.Error(w, "Bad Request: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			if input.ID == "" {
+				http.Error(w, "Canvas ID is required", http.StatusBadRequest)
+				return
+			}
+
+			// Pre-configure options based on selected device types
+			if input.DeviceType != "" {
+				switch input.DeviceType {
+				case "waveshare_7in5_v2":
+					input.Width = 800
+					input.Height = 480
+					input.ColorMode = "bwr"
+				case "waveshare_7in5_mono":
+					input.Width = 800
+					input.Height = 480
+					input.ColorMode = "mono"
+				case "waveshare_4in2":
+					input.Width = 400
+					input.Height = 300
+					input.ColorMode = "mono"
+				case "waveshare_2in9_bwr":
+					input.Width = 296
+					input.Height = 128
+					input.ColorMode = "bwr"
+				case "waveshare_2in9_mono":
+					input.Width = 296
+					input.Height = 128
+					input.ColorMode = "mono"
+				}
+			}
+
+			if input.Width <= 0 || input.Height <= 0 {
+				http.Error(w, "Invalid display dimensions", http.StatusBadRequest)
+				return
+			}
+			if input.ColorMode == "" {
+				input.ColorMode = "mono"
+			}
+			if input.Timezone == "" {
+				input.Timezone = "Asia/Kolkata"
+			}
+
+			c := db.CanvasRecord{
+				ID:        input.ID,
+				Width:     input.Width,
+				Height:    input.Height,
+				ColorMode: input.ColorMode,
+				Timezone:  input.Timezone,
+			}
+
+			if err := database.SaveCanvas(c); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "success", "canvas_id": c.ID})
+			return
+		}
+
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	}))
+
+	// DELETE /api/canvas/{id}
+	mux.HandleFunc("/api/canvas/", basicAuth(database, "Dashboard Admin", func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(r.URL.Path, "/")
+		if len(parts) < 4 {
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
+		}
+		canvasID := parts[3]
+
+		if r.Method == http.MethodDelete {
+			if err := database.DeleteCanvas(canvasID); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+			return
+		}
+
+		if r.Method == http.MethodGet {
+			// Retrieve widgets for a canvas
+			widgets, err := database.GetWidgetsForCanvas(canvasID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(widgets)
+			return
+		}
+
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	}))
+
+	// 3. POST /api/canvas/{id}/widget — adds/updates a widget
+	mux.HandleFunc("/api/widget", basicAuth(database, "Dashboard Admin", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			var input db.WidgetRecord
+			if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+				http.Error(w, "Bad Request: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			if input.ID == "" || input.CanvasID == "" || input.Type == "" {
+				http.Error(w, "ID, CanvasID, and Type are required parameters", http.StatusBadRequest)
+				return
+			}
+
+			// Validate target canvas profile exists
+			canvasExists, err := database.GetCanvas(input.CanvasID)
+			if err != nil || canvasExists == nil {
+				http.Error(w, "Target Canvas ID profile does not exist", http.StatusBadRequest)
+				return
+			}
+
+			if err := database.SaveWidget(input); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Dynamically trigger subscription connect for MQTT bound widgets
+			if input.MQTTTopic != "" {
+				go func(broker, topic string) {
+					_ = mqttRegistry.Subscribe(broker, topic, "", "")
+				}(input.MQTTBroker, input.MQTTTopic)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "success", "widget_id": input.ID})
+			return
+		}
+
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	}))
+
+	// DELETE /api/widget/{id}
+	mux.HandleFunc("/api/widget/", basicAuth(database, "Dashboard Admin", func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(r.URL.Path, "/")
+		if len(parts) < 4 {
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
+		}
+		widgetID := parts[3]
+
+		if r.Method == http.MethodDelete {
+			if err := database.DeleteWidget(widgetID); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+			return
+		}
+
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	}))
+
+	// Serves settings admin layout control portal
 	mux.HandleFunc("/settings", basicAuth(database, "Dashboard Admin", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
@@ -272,330 +338,178 @@ func main() {
 		}
 
 		if r.Method == http.MethodPost {
-			var model settingsAPIModel
+			var model struct {
+				AuthUsername string `json:"auth_username"`
+				AuthPassword string `json:"auth_password"`
+			}
 			if err := json.NewDecoder(r.Body).Decode(&model); err != nil {
-				http.Error(w, "Bad Request: "+err.Error(), http.StatusBadRequest)
+				http.Error(w, "Bad Request", http.StatusBadRequest)
 				return
 			}
 
-			// Validate input lengths
 			if len(model.AuthUsername) < 3 {
 				http.Error(w, "Username must be at least 3 characters", http.StatusBadRequest)
 				return
 			}
-			if model.AuthPassword != "" && len(model.AuthPassword) < 4 {
-				http.Error(w, "Password must be at least 4 characters", http.StatusBadRequest)
-				return
-			}
 
-			// Save credentials if changed
 			if err := database.SaveAuthCredentials(model.AuthUsername, model.AuthPassword); err != nil {
-				log.Printf("Error saving auth credentials: %v", err)
 				http.Error(w, "Failed to save login credentials", http.StatusInternalServerError)
 				return
 			}
-
-			// Save config fields to DB
-			_ = database.SaveSetting("mqtt_broker", model.MQTTBroker)
-			_ = database.SaveSetting("mqtt_client_id", model.MQTTClientID)
-			_ = database.SaveSetting("mqtt_username", model.MQTTUsername)
-			_ = database.SaveSetting("mqtt_password", model.MQTTPassword)
-			_ = database.SaveSetting("notes_topic", model.NotesTopic)
-			_ = database.SaveSetting("emails_topic", model.EmailsTopic)
-			_ = database.SaveSetting("calendar_topic", model.CalendarTopic)
-			_ = database.SaveSetting("weather_topic", model.WeatherTopic)
-			_ = database.SaveSetting("ical_url", model.ICalURL)
-			_ = database.SaveSetting("timezone", model.Timezone)
-			_ = database.SaveSetting("port", model.Port)
-			_ = database.SaveSetting("width", strconv.Itoa(model.Width))
-			_ = database.SaveSetting("height", strconv.Itoa(model.Height))
-			_ = database.SaveSetting("font_family", model.FontFamily)
-			_ = database.SaveSetting("layout_style", model.LayoutStyle)
-			_ = database.SaveSetting("show_calendar", strconv.FormatBool(model.ShowCalendar))
-			_ = database.SaveSetting("show_schedule", strconv.FormatBool(model.ShowSchedule))
-			_ = database.SaveSetting("show_inbox", strconv.FormatBool(model.ShowInbox))
-			_ = database.SaveSetting("show_notes", strconv.FormatBool(model.ShowNotes))
-			_ = database.SaveSetting("show_weather", strconv.FormatBool(model.ShowWeather))
-			_ = database.SaveSetting("show_sensors", strconv.FormatBool(model.ShowSensors))
-			_ = database.SaveSetting("weather_api_key", model.WeatherAPIKey)
-			_ = database.SaveSetting("weather_city", model.WeatherCity)
-
-			log.Println("Configuration successfully saved to SQLite database")
 
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 			return
 		}
-
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}))
 
-	// Basic Auth Protected JSON Settings API (used by Settings GUI)
+	// Protect credentials API queries
 	mux.HandleFunc("/api/settings", basicAuth(database, "Dashboard Admin", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		if r.Method == http.MethodGet {
+			user, _, _ := database.GetAuthCredentials()
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{"auth_username": user})
 			return
 		}
-
-		user, _, _ := database.GetAuthCredentials()
-		broker, _ := database.GetSetting("mqtt_broker")
-		clientId, _ := database.GetSetting("mqtt_client_id")
-		username, _ := database.GetSetting("mqtt_username")
-		password, _ := database.GetSetting("mqtt_password")
-		notesTopic, _ := database.GetSetting("notes_topic")
-		emailsTopic, _ := database.GetSetting("emails_topic")
-		calTopic, _ := database.GetSetting("calendar_topic")
-		weatherTopic, _ := database.GetSetting("weather_topic")
-		if weatherTopic == "" {
-			weatherTopic = "home/eink/weather"
-		}
-		icalUrl, _ := database.GetSetting("ical_url")
-		timezone, _ := database.GetSetting("timezone")
-		port, _ := database.GetSetting("port")
-		widthStr, _ := database.GetSetting("width")
-		heightStr, _ := database.GetSetting("height")
-		fontFamily, _ := database.GetSetting("font_family")
-
-		layoutStyle, _ := database.GetSetting("layout_style")
-		if layoutStyle == "" {
-			layoutStyle = "default"
-		}
-		showCalStr, _ := database.GetSetting("show_calendar")
-		showCal := showCalStr != "false"
-		showSchStr, _ := database.GetSetting("show_schedule")
-		showSch := showSchStr != "false"
-		showInbStr, _ := database.GetSetting("show_inbox")
-		showInb := showInbStr != "false"
-		showNotStr, _ := database.GetSetting("show_notes")
-		showNot := showNotStr != "false"
-		showWeaStr, _ := database.GetSetting("show_weather")
-		showWea := showWeaStr != "false"
-		showSenStr, _ := database.GetSetting("show_sensors")
-		showSen := showSenStr != "false"
-		weatherKey, _ := database.GetSetting("weather_api_key")
-		weatherCity, _ := database.GetSetting("weather_city")
-		if weatherCity == "" {
-			weatherCity = "New Delhi,IN"
-		}
-
-		width, _ := strconv.Atoi(widthStr)
-		height, _ := strconv.Atoi(heightStr)
-
-		model := settingsAPIModel{
-			MQTTBroker:    broker,
-			MQTTClientID:  clientId,
-			MQTTUsername:  username,
-			MQTTPassword:  password,
-			NotesTopic:    notesTopic,
-			EmailsTopic:   emailsTopic,
-			CalendarTopic: calTopic,
-			WeatherTopic:  weatherTopic,
-			ICalURL:       icalUrl,
-			Timezone:      timezone,
-			Port:          port,
-			Width:         width,
-			Height:        height,
-			FontFamily:    fontFamily,
-			LayoutStyle:   layoutStyle,
-			ShowCalendar:  showCal,
-			ShowSchedule:  showSch,
-			ShowInbox:     showInb,
-			ShowNotes:     showNot,
-			ShowWeather:   showWea,
-			ShowSensors:   showSen,
-			WeatherAPIKey: weatherKey,
-			WeatherCity:   weatherCity,
-			AuthUsername:  user,
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(model)
 	}))
 
-	// Basic Auth Protected Restart daemon endpoint
+	// Restart Daemon endpoint
 	mux.HandleFunc("/restart", basicAuth(database, "Dashboard Admin", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
 		}
-
-		log.Println("Restart requested via Web Admin interface. Initiating graceful shutdown...")
+		log.Println("Restart requested. Initiating shutdown...")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("Shutting down..."))
-
-		// Asynchronously terminate process so http response sends successfully first
 		go func() {
 			time.Sleep(1 * time.Second)
-			log.Println("Server exiting now (Code 0). Process daemon manager will restart.")
 			os.Exit(0)
 		}()
 	}))
 
-	// 8. Start HTTP Server
+	// Start HTTP Server
 	server := &http.Server{
 		Addr:    ":" + cfg.Port,
 		Handler: mux,
 	}
 
 	go func() {
-		log.Printf("HTTP server listening on port %s...", cfg.Port)
+		log.Printf("E-Ink Dashboard REST API listening on port %s...", cfg.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("HTTP server failed: %v", err)
 		}
 	}()
 
-	// Setup signal interception for graceful shutdown
+	// Signal intercept for graceful exits
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
 	<-stop
-	log.Println("Shutting down gracefully...")
 
+	log.Println("Shutting down server gracefully...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Server shutdown error: %v", err)
-	}
-
-	log.Println("Server stopped.")
+	_ = server.Shutdown(ctx)
 }
 
-// loadConfigWithDB loads application config from DB settings table, falling back to config.yaml if empty
+// initDefaultCanvas sets up initial default canvas layouts
+func initDefaultCanvas(database *db.DB) {
+	existing, _ := database.GetCanvas("default")
+	if existing == nil {
+		log.Println("Initializing default canvas profile layout...")
+		c := db.CanvasRecord{
+			ID:        "default",
+			Width:     800,
+			Height:    480,
+			ColorMode: "bwr",
+			Timezone:  "Asia/Kolkata",
+		}
+		_ = database.SaveCanvas(c)
+
+		// Create standard 4-quadrant dynamic widget layouts
+		widgets := []db.WidgetRecord{
+			{
+				ID:         "widget_calendar",
+				CanvasID:   "default",
+				Type:       "calendar",
+				X:          15, Y: 15, Width: 300, Height: 240,
+				ColorFG:    "#000000", ColorBG: "#FFFFFF",
+				FontURL:    "https://fonts.googleapis.com/css2?family=Mukta:wght@400;700",
+				FontSize:   14,
+				FontWeight: "Regular",
+			},
+			{
+				ID:         "widget_datetime",
+				CanvasID:   "default",
+				Type:       "datetime",
+				X:          15, Y: 270, Width: 300, Height: 80,
+				ColorFG:    "#FF0000", ColorBG: "#FFFFFF",
+				FontURL:    "https://fonts.googleapis.com/css2?family=Mukta:wght@400;700",
+				FontSize:   15,
+				FontWeight: "Bold",
+				CustomConfig: `{"format":"Monday, Jan _2"}`,
+			},
+			{
+				ID:         "widget_time",
+				CanvasID:   "default",
+				Type:       "datetime",
+				X:          15, Y: 350, Width: 300, Height: 100,
+				ColorFG:    "#000000", ColorBG: "#FFFFFF",
+				FontURL:    "https://fonts.googleapis.com/css2?family=Mukta:wght@400;700",
+				FontSize:   28,
+				FontWeight: "Bold",
+				CustomConfig: `{"format":"03:04 PM"}`,
+			},
+			{
+				ID:         "widget_emails",
+				CanvasID:   "default",
+				Type:       "emails",
+				X:          340, Y: 15, Width: 440, Height: 220,
+				MQTTTopic:  "home/eink/emails", MQTTBroker: "tcp://100.101.102.4:1883",
+				ColorFG:    "#000000", ColorBG: "#FFFFFF",
+				FontURL:    "https://fonts.googleapis.com/css2?family=Mukta:wght@400;700",
+				FontSize:   14,
+				FontWeight: "Regular",
+			},
+			{
+				ID:         "widget_notes",
+				CanvasID:   "default",
+				Type:       "notes",
+				X:          340, Y: 250, Width: 440, Height: 210,
+				MQTTTopic:  "home/eink/notes", MQTTBroker: "tcp://100.101.102.4:1883",
+				ColorFG:    "#000000", ColorBG: "#FFFFFF",
+				FontURL:    "https://fonts.googleapis.com/css2?family=Mukta:wght@400;700",
+				FontSize:   14,
+				FontWeight: "Regular",
+			},
+		}
+
+		for _, w := range widgets {
+			_ = database.SaveWidget(w)
+		}
+	}
+}
+
+// loadConfigWithDB handles loading configuration from SQLite or config.yaml fallback
 func loadConfigWithDB(database *db.DB, configPath string) (*config.Config, error) {
-	broker, err := database.GetSetting("mqtt_broker")
+	port, err := database.GetSetting("port")
 	if err != nil {
 		return nil, err
 	}
 
-	// If broker setting is empty, populate SQLite from YAML/env variables config loader
-	if broker == "" {
-		log.Println("SQLite database settings are empty. Initializing settings from local config file...")
+	if port == "" {
 		cfg, err := config.LoadConfig(configPath)
 		if err != nil {
 			return nil, err
 		}
-
-		_ = database.SaveSetting("mqtt_broker", cfg.MQTTBroker)
-		_ = database.SaveSetting("mqtt_client_id", cfg.MQTTClientID)
-		_ = database.SaveSetting("mqtt_username", cfg.MQTTUsername)
-		_ = database.SaveSetting("mqtt_password", cfg.MQTTPassword)
-		_ = database.SaveSetting("notes_topic", cfg.NotesTopic)
-		_ = database.SaveSetting("emails_topic", cfg.EmailsTopic)
-		_ = database.SaveSetting("calendar_topic", cfg.CalendarTopic)
-		_ = database.SaveSetting("weather_topic", cfg.WeatherTopic)
-		_ = database.SaveSetting("ical_url", cfg.ICalURL)
-		_ = database.SaveSetting("timezone", cfg.Timezone)
 		_ = database.SaveSetting("port", cfg.Port)
-		_ = database.SaveSetting("width", strconv.Itoa(cfg.Width))
-		_ = database.SaveSetting("height", strconv.Itoa(cfg.Height))
-		_ = database.SaveSetting("font_family", cfg.FontFamily)
-		_ = database.SaveSetting("layout_style", cfg.LayoutStyle)
-		_ = database.SaveSetting("show_calendar", strconv.FormatBool(cfg.ShowCalendar))
-		_ = database.SaveSetting("show_schedule", strconv.FormatBool(cfg.ShowSchedule))
-		_ = database.SaveSetting("show_inbox", strconv.FormatBool(cfg.ShowInbox))
-		_ = database.SaveSetting("show_notes", strconv.FormatBool(cfg.ShowNotes))
-		_ = database.SaveSetting("show_weather", strconv.FormatBool(cfg.ShowWeather))
-		_ = database.SaveSetting("show_sensors", strconv.FormatBool(cfg.ShowSensors))
-		_ = database.SaveSetting("weather_api_key", cfg.WeatherAPIKey)
-		_ = database.SaveSetting("weather_city", cfg.WeatherCity)
-
 		return cfg, nil
 	}
 
-	// Otherwise load configurations straight from SQLite database
-	cfg := &config.Config{
-		MQTTBroker: broker,
-	}
-
-	if val, err := database.GetSetting("mqtt_client_id"); err == nil {
-		cfg.MQTTClientID = val
-	}
-	if val, err := database.GetSetting("mqtt_username"); err == nil {
-		cfg.MQTTUsername = val
-	}
-	if val, err := database.GetSetting("mqtt_password"); err == nil {
-		cfg.MQTTPassword = val
-	}
-	if val, err := database.GetSetting("notes_topic"); err == nil {
-		cfg.NotesTopic = val
-	}
-	if val, err := database.GetSetting("emails_topic"); err == nil {
-		cfg.EmailsTopic = val
-	}
-	if val, err := database.GetSetting("calendar_topic"); err == nil {
-		cfg.CalendarTopic = val
-	}
-	cfg.WeatherTopic, _ = database.GetSetting("weather_topic")
-	if cfg.WeatherTopic == "" {
-		cfg.WeatherTopic = "home/eink/weather"
-	}
-	if val, err := database.GetSetting("ical_url"); err == nil {
-		cfg.ICalURL = val
-	}
-	if val, err := database.GetSetting("timezone"); err == nil {
-		cfg.Timezone = val
-	}
-	if val, err := database.GetSetting("port"); err == nil {
-		cfg.Port = val
-	}
-	if val, err := database.GetSetting("width"); err == nil {
-		if w, err := strconv.Atoi(val); err == nil {
-			cfg.Width = w
-		}
-	}
-	if val, err := database.GetSetting("height"); err == nil {
-		if h, err := strconv.Atoi(val); err == nil {
-			cfg.Height = h
-		}
-	}
-	if val, err := database.GetSetting("font_family"); err == nil {
-		cfg.FontFamily = val
-	}
-	cfg.LayoutStyle, _ = database.GetSetting("layout_style")
-	if cfg.LayoutStyle == "" {
-		cfg.LayoutStyle = "default"
-	}
-	if val, err := database.GetSetting("show_calendar"); err == nil && val != "" {
-		cfg.ShowCalendar, _ = strconv.ParseBool(val)
-	} else {
-		cfg.ShowCalendar = true
-	}
-	if val, err := database.GetSetting("show_schedule"); err == nil && val != "" {
-		cfg.ShowSchedule, _ = strconv.ParseBool(val)
-	} else {
-		cfg.ShowSchedule = true
-	}
-	if val, err := database.GetSetting("show_inbox"); err == nil && val != "" {
-		cfg.ShowInbox, _ = strconv.ParseBool(val)
-	} else {
-		cfg.ShowInbox = true
-	}
-	if val, err := database.GetSetting("show_notes"); err == nil && val != "" {
-		cfg.ShowNotes, _ = strconv.ParseBool(val)
-	} else {
-		cfg.ShowNotes = true
-	}
-	if val, err := database.GetSetting("show_weather"); err == nil && val != "" {
-		cfg.ShowWeather, _ = strconv.ParseBool(val)
-	} else {
-		cfg.ShowWeather = true
-	}
-	if val, err := database.GetSetting("show_sensors"); err == nil && val != "" {
-		cfg.ShowSensors, _ = strconv.ParseBool(val)
-	} else {
-		cfg.ShowSensors = true
-	}
-	cfg.WeatherAPIKey, _ = database.GetSetting("weather_api_key")
-	cfg.WeatherCity, _ = database.GetSetting("weather_city")
-	if cfg.WeatherCity == "" {
-		cfg.WeatherCity = "New Delhi,IN"
-	}
-
-	return cfg, nil
+	return &config.Config{Port: port}, nil
 }
 
-// basicAuth HTTP Middleware wrapping logic
+// basicAuth handles HTTP Basic Authentication wrappers
 func basicAuth(database *db.DB, realm string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		username, password, ok := r.BasicAuth()
@@ -607,7 +521,6 @@ func basicAuth(database *db.DB, realm string, next http.HandlerFunc) http.Handle
 
 		storedUser, storedHash, err := database.GetAuthCredentials()
 		if err != nil {
-			log.Printf("Auth database fetch error: %v", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}

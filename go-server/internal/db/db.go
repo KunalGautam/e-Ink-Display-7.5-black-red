@@ -51,6 +51,31 @@ func InitDB(dbPath string) (*DB, error) {
 			subject TEXT,
 			timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 		);`,
+		`CREATE TABLE IF NOT EXISTS canvases (
+			id TEXT PRIMARY KEY,
+			width INTEGER,
+			height INTEGER,
+			color_mode TEXT,
+			timezone TEXT
+		);`,
+		`CREATE TABLE IF NOT EXISTS widgets (
+			id TEXT PRIMARY KEY,
+			canvas_id TEXT,
+			type TEXT,
+			x INTEGER,
+			y INTEGER,
+			width INTEGER,
+			height INTEGER,
+			mqtt_topic TEXT,
+			mqtt_broker TEXT,
+			color_fg TEXT,
+			color_bg TEXT,
+			font_url TEXT,
+			font_size REAL,
+			font_weight TEXT,
+			custom_config TEXT,
+			FOREIGN KEY(canvas_id) REFERENCES canvases(id) ON DELETE CASCADE
+		);`,
 	}
 
 	for _, query := range queries {
@@ -298,4 +323,133 @@ func (d *DB) GetCachedEmails() ([]EmailRecord, error) {
 	}
 
 	return emails, nil
+}
+
+type CanvasRecord struct {
+	ID        string `json:"id"`
+	Width     int    `json:"width"`
+	Height    int    `json:"height"`
+	ColorMode string `json:"color_mode"`
+	Timezone  string `json:"timezone"`
+}
+
+type WidgetRecord struct {
+	ID           string  `json:"id"`
+	CanvasID     string  `json:"canvas_id"`
+	Type         string  `json:"type"`
+	X            int     `json:"x"`
+	Y            int     `json:"y"`
+	Width        int     `json:"width"`
+	Height       int     `json:"height"`
+	MQTTTopic    string  `json:"mqtt_topic"`
+	MQTTBroker   string  `json:"mqtt_broker"`
+	ColorFG      string  `json:"color_fg"`
+	ColorBG      string  `json:"color_bg"`
+	FontURL      string  `json:"font_url"`
+	FontSize     float64 `json:"font_size"`
+	FontWeight   string  `json:"font_weight"`
+	CustomConfig string  `json:"custom_config"`
+}
+
+func (d *DB) SaveCanvas(c CanvasRecord) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	_, err := d.conn.Exec("INSERT OR REPLACE INTO canvases (id, width, height, color_mode, timezone) VALUES (?, ?, ?, ?, ?)",
+		c.ID, c.Width, c.Height, c.ColorMode, c.Timezone)
+	return err
+}
+
+func (d *DB) GetCanvas(id string) (*CanvasRecord, error) {
+	var c CanvasRecord
+	err := d.conn.QueryRow("SELECT id, width, height, color_mode, timezone FROM canvases WHERE id = ?", id).
+		Scan(&c.ID, &c.Width, &c.Height, &c.ColorMode, &c.Timezone)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func (d *DB) ListCanvases() ([]CanvasRecord, error) {
+	rows, err := d.conn.Query("SELECT id, width, height, color_mode, timezone FROM canvases")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []CanvasRecord
+	for rows.Next() {
+		var c CanvasRecord
+		if err := rows.Scan(&c.ID, &c.Width, &c.Height, &c.ColorMode, &c.Timezone); err != nil {
+			return nil, err
+		}
+		list = append(list, c)
+	}
+	return list, nil
+}
+
+func (d *DB) DeleteCanvas(id string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	_, err := d.conn.Exec("DELETE FROM canvases WHERE id = ?", id)
+	return err
+}
+
+func (d *DB) SaveWidget(w WidgetRecord) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	_, err := d.conn.Exec(`INSERT OR REPLACE INTO widgets 
+		(id, canvas_id, type, x, y, width, height, mqtt_topic, mqtt_broker, color_fg, color_bg, font_url, font_size, font_weight, custom_config) 
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		w.ID, w.CanvasID, w.Type, w.X, w.Y, w.Width, w.Height, w.MQTTTopic, w.MQTTBroker, w.ColorFG, w.ColorBG, w.FontURL, w.FontSize, w.FontWeight, w.CustomConfig)
+	return err
+}
+
+func (d *DB) GetWidgetsForCanvas(canvasID string) ([]WidgetRecord, error) {
+	rows, err := d.conn.Query(`SELECT id, canvas_id, type, x, y, width, height, mqtt_topic, mqtt_broker, color_fg, color_bg, font_url, font_size, font_weight, custom_config 
+		FROM widgets WHERE canvas_id = ?`, canvasID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []WidgetRecord
+	for rows.Next() {
+		var w WidgetRecord
+		err := rows.Scan(&w.ID, &w.CanvasID, &w.Type, &w.X, &w.Y, &w.Width, &w.Height, &w.MQTTTopic, &w.MQTTBroker, &w.ColorFG, &w.ColorBG, &w.FontURL, &w.FontSize, &w.FontWeight, &w.CustomConfig)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, w)
+	}
+	return list, nil
+}
+
+func (d *DB) GetAllWidgets() ([]WidgetRecord, error) {
+	rows, err := d.conn.Query(`SELECT id, canvas_id, type, x, y, width, height, mqtt_topic, mqtt_broker, color_fg, color_bg, font_url, font_size, font_weight, custom_config 
+		FROM widgets`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []WidgetRecord
+	for rows.Next() {
+		var w WidgetRecord
+		err := rows.Scan(&w.ID, &w.CanvasID, &w.Type, &w.X, &w.Y, &w.Width, &w.Height, &w.MQTTTopic, &w.MQTTBroker, &w.ColorFG, &w.ColorBG, &w.FontURL, &w.FontSize, &w.FontWeight, &w.CustomConfig)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, w)
+	}
+	return list, nil
+}
+
+func (d *DB) DeleteWidget(id string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	_, err := d.conn.Exec("DELETE FROM widgets WHERE id = ?", id)
+	return err
 }

@@ -3,7 +3,7 @@
 # Exit immediately if any command fails
 set -e
 
-# Make sure the script is run with sudo/root privileges (since it modifies systemd)
+# Make sure the script is run with sudo/root privileges
 if [[ $EUID -ne 0 ]]; then
    echo "Error: This script must be run as root (using sudo). Please run: sudo ./setup.sh install" 
    exit 1
@@ -15,7 +15,7 @@ SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
 show_usage() {
     echo "Usage: sudo ./setup.sh [install | uninstall]"
-    echo "  install   : Sets up the client dependencies and installs the systemd service"
+    echo "  install   : Sets up the client dependencies, writes client_config.json, and installs the systemd service"
     echo "  uninstall : Stops, disables, and removes the systemd service"
 }
 
@@ -33,11 +33,17 @@ install_service() {
         exit 1
     fi
 
+    # Enable SPI on Raspberry Pi (if raspi-config exists)
+    if command -v raspi-config &>/dev/null; then
+        echo "Enabling SPI interface via raspi-config..."
+        raspi-config nonint do_spi 0 || true
+    fi
+
     # 2. Install dependencies
-    echo "Installing Python dependencies from requirements.txt..."
-    python3 -m pip install -r "${SCRIPT_DIR}/requirements.txt" || {
-        echo "Warning: pip install failed. Attempting with --break-system-packages (for newer Debian/Raspberry Pi OS versions)..."
-        python3 -m pip install -r "${SCRIPT_DIR}/requirements.txt" --break-system-packages
+    echo "Installing Python dependencies..."
+    python3 -m pip install requests Pillow || {
+        echo "Warning: pip install failed. Attempting with --break-system-packages..."
+        python3 -m pip install requests Pillow --break-system-packages
     }
 
     echo ""
@@ -51,10 +57,13 @@ install_service() {
         }
     fi
 
-    # 3. Prompt for configuration or use default
+    # 3. Prompt for configuration
     echo ""
     echo "--- Configure Service Parameters ---"
     
+    read -rp "Enter Canvas ID to poll [default]: " CANVAS_ID
+    CANVAS_ID=${CANVAS_ID:-"default"}
+
     read -rp "Enter Go server URL [http://localhost:8080]: " SERVER_URL
     SERVER_URL=${SERVER_URL:-"http://localhost:8080"}
     
@@ -67,7 +76,7 @@ install_service() {
     read -rp "Enable Hardware mock mode? (true/false) [false]: " MOCK_MODE
     MOCK_MODE=${MOCK_MODE:-"false"}
 
-    # Detect current non-root user (who ran sudo) for the service execution
+    # Detect execution user
     RUN_USER=${SUDO_USER:-$(whoami)}
     if [ "$RUN_USER" = "root" ]; then
         if id "dietpi" &>/dev/null; then
@@ -79,23 +88,30 @@ install_service() {
         fi
     fi
     
-    echo "Configuring service to run as user: ${RUN_USER}"
+    # Write to local JSON configuration
+    cat <<EOF > "${SCRIPT_DIR}/client_config.json"
+{
+  "canvas_id": "${CANVAS_ID}",
+  "backend_url": "${SERVER_URL}",
+  "display_driver": "${EPD_DRIVER}",
+  "poll_interval": ${REFRESH_INTERVAL_SECS},
+  "mock_mode": ${MOCK_MODE}
+}
+EOF
+    chown ${RUN_USER}:${RUN_USER} "${SCRIPT_DIR}/client_config.json"
+    echo "Wrote configuration parameters to client_config.json"
 
     # 4. Generate systemd service file
     echo "Generating ${SERVICE_FILE}..."
     cat <<EOF > "${SERVICE_FILE}"
 [Unit]
-Description=e-Paper E-Ink Display Client Service
+Description=e-Paper E-Ink Display Client Service (${CANVAS_ID})
 After=network.target
 
 [Service]
 Type=simple
 User=${RUN_USER}
 WorkingDirectory=${SCRIPT_DIR}
-Environment=SERVER_URL=${SERVER_URL}
-Environment=REFRESH_INTERVAL_SECS=${REFRESH_INTERVAL_SECS}
-Environment=EPD_DRIVER=${EPD_DRIVER}
-Environment=MOCK_MODE=${MOCK_MODE}
 ExecStart=/usr/bin/python3 client.py
 Restart=on-failure
 RestartSec=10
@@ -143,12 +159,19 @@ uninstall_service() {
         echo "Service file ${SERVICE_FILE} does not exist. Skipping service removal."
     fi
     
-    # Optionally remove local state file
-    STATE_FILE="${SCRIPT_DIR}/.client_state.json"
-    if [ -f "${STATE_FILE}" ]; then
-        read -rp "Do you want to delete the cached client state file (.client_state.json)? (y/n) [n]: " REMOVE_STATE
+    # Optionally remove local config and state files
+    if [ -f "${SCRIPT_DIR}/client_config.json" ]; then
+        read -rp "Do you want to delete client_config.json? (y/n) [n]: " REMOVE_CONF
+        if [[ $REMOVE_CONF =~ ^[Yy]$ ]]; then
+            rm -f "${SCRIPT_DIR}/client_config.json"
+            echo "Configuration file removed."
+        fi
+    fi
+    
+    if [ -f "${SCRIPT_DIR}/.client_state.json" ]; then
+        read -rp "Do you want to delete cached state (.client_state.json)? (y/n) [n]: " REMOVE_STATE
         if [[ $REMOVE_STATE =~ ^[Yy]$ ]]; then
-            rm -f "${STATE_FILE}"
+            rm -f "${SCRIPT_DIR}/.client_state.json"
             echo "State cache file removed."
         fi
     fi

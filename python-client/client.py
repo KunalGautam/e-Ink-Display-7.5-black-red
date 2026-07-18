@@ -5,9 +5,7 @@ import time
 import json
 import logging
 import hashlib
-from io import BytesIO
 import requests
-from PIL import Image
 
 # Setup logging
 logging.basicConfig(
@@ -19,23 +17,40 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configuration parameters (loaded from env variables or defaults)
-SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8080").rstrip('/')
-REFRESH_INTERVAL = int(os.getenv("REFRESH_INTERVAL_SECS", "300"))  # 5 minutes
-DISPLAY_MODE = os.getenv("DISPLAY_MODE", "png").lower()            # "png" or "raw"
-EPD_DRIVER = os.getenv("EPD_DRIVER", "epd7in5b_V2")                # Waveshare 7.5" V2 B/C-type
-MOCK_MODE = os.getenv("MOCK_MODE", "false").lower() in ("true", "1", "yes")
-
-# Validate display mode
-if DISPLAY_MODE not in ("png", "raw"):
-    logger.error("DISPLAY_MODE must be either 'png' or 'raw'. Defaulting to 'png'.")
-    DISPLAY_MODE = "png"
-
-# Setup state file path to track last rendered image hash and timestamp
+# Path to config file and state file
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "client_config.json")
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".client_state.json")
+
+# Default configurations
+config = {
+    "canvas_id": "default",
+    "backend_url": "http://localhost:8080",
+    "display_driver": "epd7in5b_V2",
+    "poll_interval": 300,
+    "mock_mode": False
+}
+
+# Load configurations from client_config.json if exists
+if os.path.exists(CONFIG_FILE):
+    try:
+        with open(CONFIG_FILE, "r") as f:
+            user_config = json.load(f)
+            config.update(user_config)
+        logger.info(f"Loaded configuration from {CONFIG_FILE}")
+    except Exception as e:
+        logger.warning(f"Failed to parse config file: {e}. Using defaults/environment.")
+
+# Fallback/override with environment variables
+CANVAS_ID = os.getenv("CANVAS_ID", config["canvas_id"])
+BACKEND_URL = os.getenv("BACKEND_URL", config["backend_url"]).rstrip('/')
+EPD_DRIVER = os.getenv("EPD_DRIVER", config["display_driver"])
+POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", str(config["poll_interval"])))
+MOCK_MODE = os.getenv("MOCK_MODE", "true" if config["mock_mode"] else "false").lower() in ("true", "1", "yes")
 
 # Setup e-ink driver reference
 epd = None
+is_bwr = "b" in EPD_DRIVER.lower()  # standard Waveshare driver naming: 'b' suffix denotes black/white/red
+
 if not MOCK_MODE:
     try:
         import importlib
@@ -45,86 +60,41 @@ if not MOCK_MODE:
         logger.info("Driver loaded successfully.")
     except ImportError as e:
         logger.error(
-            f"Failed to import waveshare_epd.{EPD_DRIVER}. Make sure waveshare-epaper library is installed, "
-            f"or run in mock mode by setting MOCK_MODE=true. Error: {e}"
+            f"Failed to import waveshare_epd.{EPD_DRIVER}. Install waveshare-epaper, or set mock_mode to true. Error: {e}"
         )
         sys.exit(1)
 else:
-    logger.info("Running in DEVELOPER MOCK MODE. Output channels will be saved to disk.")
+    logger.info("Running in DEVELOPER MOCK MODE. Bytes will be parsed to mock images on disk.")
 
 
 def load_state():
-    """Loads client state containing the last updated image hash and timestamp."""
     state = {"last_hash": "", "last_update": 0.0}
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE, "r") as f:
                 state = json.load(f)
-            logger.debug(f"Loaded client state: {state}")
         except Exception as e:
-            logger.warning(f"Failed to read client state file: {e}")
+            logger.warning(f"Failed to read state cache: {e}")
     return state
 
 
 def save_state(state):
-    """Saves client state containing the last updated image hash and timestamp."""
     try:
         with open(STATE_FILE, "w") as f:
             json.dump(state, f)
-        logger.debug(f"Saved client state: {state}")
     except Exception as e:
-        logger.warning(f"Failed to save client state file: {e}")
+        logger.warning(f"Failed to save state cache: {e}")
 
 
-def split_channels(img_rgb: Image.Image):
-    """
-    Takes an RGB Image, processes its pixels, and splits it into
-    black/white and red/white monochrome '1' images.
-    Using getdata() and putdata() is highly optimized in Pillow.
-    """
-    logger.info("Processing PNG layout and separating colors...")
-    start_time = time.time()
-    
-    img_data = img_rgb.getdata()
-    black_pixels = []
-    red_pixels = []
-
-    for r, g, b in img_data:
-        # Check for red (high red, low green and blue)
-        if r > 130 and g < 120 and b < 120:
-            black_pixels.append(255) # white
-            red_pixels.append(0)     # red/active
-        # Check for black/grey (any dark or grey pixel is treated as black to capture anti-aliasing edges)
-        elif r < 120 and g < 120 and b < 120:
-            black_pixels.append(0)   # black/active
-            red_pixels.append(255) # white
-        else:
-            black_pixels.append(255) # white
-            red_pixels.append(255) # white
-
-    black_img = Image.new('1', img_rgb.size)
-    black_img.putdata(black_pixels)
-
-    red_img = Image.new('1', img_rgb.size)
-    red_img.putdata(red_pixels)
-    
-    elapsed = time.time() - start_time
-    logger.info(f"Color separation finished in {elapsed:.3f} seconds.")
-    return black_img, red_img
-
-
-def fetch_image_with_retry():
-    """
-    Fetches the layout image from the Go server with exponential backoff on failure.
-    """
-    endpoint = f"{SERVER_URL}/image" if DISPLAY_MODE == "png" else f"{SERVER_URL}/image/raw"
+def fetch_packed_render_bytes():
+    endpoint = f"{BACKEND_URL}/canvas/{CANVAS_ID}/render"
     backoff = 5
     max_backoff = 60
 
     while True:
         try:
-            logger.info(f"Fetching layout from server: {endpoint}")
-            response = requests.get(endpoint, timeout=15)
+            logger.info(f"Fetching packed render stream from: {endpoint}")
+            response = requests.get(endpoint, timeout=20)
             response.raise_for_status()
             return response.content
         except requests.RequestException as e:
@@ -134,98 +104,63 @@ def fetch_image_with_retry():
 
 
 def update_display():
-    """
-    Fetches layout, computes hash, verifies if changes exist, and updates display.
-    """
-    data = fetch_image_with_retry()
-    
-    # 1. Compute hash of the received image bytes
+    data = fetch_packed_render_bytes()
     current_hash = hashlib.sha256(data).hexdigest()
-    
-    # 2. Check last update state
+
     state = load_state()
     last_hash = state.get("last_hash", "")
     last_update = state.get("last_update", 0.0)
-    
+
     now = time.time()
-    elapsed_since_update = now - last_update
-    
-    # e-paper guidelines recommend a refresh at least once every 24 hours to prevent burn-in/ghosting
-    force_refresh_threshold = 24 * 3600.0 # 24 hours
-    force_refresh = elapsed_since_update >= force_refresh_threshold
-    
+    elapsed = now - last_update
+    force_refresh = elapsed >= (24 * 3600.0) # 24 hours anti-ghosting threshold
+
     if current_hash == last_hash and not force_refresh:
-        logger.info(
-            f"Display content unchanged (SHA256: {current_hash[:10]}...). "
-            f"Last refresh was {elapsed_since_update / 60:.1f} minutes ago. Skipping update."
-        )
+        logger.info(f"Display content unchanged (SHA256: {current_hash[:10]}). Skipping screen refresh.")
         return
-        
-    if current_hash != last_hash:
-        logger.info(f"New layout content detected (SHA256: {current_hash[:10]}...). Proceeding with display update.")
-    elif force_refresh:
-        logger.info("Anti-ghosting safety refresh triggered (24 hours elapsed). Proceeding with display update.")
 
-    # 3. Process and write to display
+    logger.info("New content or safety refresh triggered. Initiating screen update...")
     update_success = False
-    
-    if DISPLAY_MODE == "png":
-        try:
-            img = Image.open(BytesIO(data)).convert('RGB')
-        except Exception as e:
-            logger.error(f"Failed to parse PNG response: {e}")
-            return
-        
-        black_img, red_img = split_channels(img)
-        
-        if MOCK_MODE:
-            black_img.save("mock_black_channel.png")
-            red_img.save("mock_red_channel.png")
-            logger.info("Mock Mode: Saved mock_black_channel.png and mock_red_channel.png")
-            update_success = True
-        else:
-            try:
-                logger.info("Initializing e-paper panel...")
-                epd.init()
-                logger.info("Sending image buffers to display panel (Full Refresh)...")
-                epd.display(epd.getbuffer(black_img), epd.getbuffer(red_img))
-                logger.info("Display update complete. Putting display to sleep.")
-                epd.sleep()
-                update_success = True
-            except Exception as e:
-                logger.error(f"Error driving physical e-ink display: {e}")
-    
-    else:  # raw mode
-        expected_len = 96000
-        if len(data) != expected_len:
-            logger.error(f"Received raw buffer of incorrect length: {len(data)} (expected {expected_len})")
-            return
-        
-        black_bytes = data[:48000]
-        red_bytes = data[48000:]
-        
-        if MOCK_MODE:
-            logger.info("Reconstructing mock channel previews from raw bytes...")
-            width, height = 800, 480
-            black_img = Image.frombytes('1', (width, height), black_bytes)
-            red_img = Image.frombytes('1', (width, height), red_bytes)
-            black_img.save("mock_black_channel.png")
-            red_img.save("mock_red_channel.png")
-            logger.info("Mock Mode: Saved mock_black_channel.png and mock_red_channel.png")
-            update_success = True
-        else:
-            try:
-                logger.info("Initializing e-paper panel...")
-                epd.init()
-                logger.info("Sending raw byte buffers to display panel...")
-                epd.display(list(black_bytes), list(red_bytes))
-                logger.info("Display update complete. Putting display to sleep.")
-                epd.sleep()
-                update_success = True
-            except Exception as e:
-                logger.error(f"Error driving physical e-ink display with raw bytes: {e}")
 
-    # 4. Save state if the hardware update succeeded
+    # Extract buffers based on BWR or Monochrome configurations
+    if is_bwr:
+        half_len = len(data) // 2
+        black_bytes = data[:half_len]
+        red_bytes = data[half_len:]
+    else:
+        black_bytes = data
+        red_bytes = None
+
+    if MOCK_MODE:
+        try:
+            from PIL import Image
+            # Reconstruct mock preview images for developer diagnostics
+            width = epd.width if epd else 800
+            height = epd.height if epd else 480
+            black_img = Image.frombytes('1', (width, height), bytes(black_bytes))
+            black_img.save("mock_black_channel.png")
+            if red_bytes:
+                red_img = Image.frombytes('1', (width, height), bytes(red_bytes))
+                red_img.save("mock_red_channel.png")
+            logger.info("Mock Mode: Saved visual output channels to disk.")
+            update_success = True
+        except Exception as e:
+            logger.error(f"Failed to generate mock image previews: {e}")
+    else:
+        try:
+            logger.info("Initializing e-paper...")
+            epd.init()
+            logger.info("Writing buffer bytes to screen...")
+            if is_bwr and red_bytes:
+                epd.display(list(black_bytes), list(red_bytes))
+            else:
+                epd.display(list(black_bytes))
+            logger.info("Update finished. Sleeping panel.")
+            epd.sleep()
+            update_success = True
+        except Exception as e:
+            logger.error(f"SPI hardware write error: {e}")
+
     if update_success:
         state["last_hash"] = current_hash
         state["last_update"] = now
@@ -233,20 +168,19 @@ def update_display():
 
 
 def main():
-    logger.info("Starting e-ink display client loop...")
-    logger.info(f"Settings - Server: {SERVER_URL}, Mode: {DISPLAY_MODE}, Interval: {REFRESH_INTERVAL}s")
+    logger.info("E-Ink Display Client Daemon Started.")
+    logger.info(f"Config - Canvas ID: {CANVAS_ID}, Backend: {BACKEND_URL}, Interval: {POLL_INTERVAL}s")
     
     while True:
         try:
             update_display()
         except KeyboardInterrupt:
-            logger.info("Client terminated by user.")
+            logger.info("Terminated by user signal.")
             break
         except Exception as e:
-            logger.critical(f"Unexpected error in client loop: {e}", exc_info=True)
+            logger.error(f"Loop runtime exception: {e}", exc_info=True)
             
-        logger.info(f"Sleeping for {REFRESH_INTERVAL} seconds until next update...")
-        time.sleep(REFRESH_INTERVAL)
+        time.sleep(POLL_INTERVAL)
 
 
 if __name__ == "__main__":

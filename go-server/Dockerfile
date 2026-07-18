@@ -1,32 +1,19 @@
-# --- Stage 1: Build Go Server binary ---
-FROM golang:1.25-bookworm AS builder
+# Build stage
+FROM golang:1.25-alpine AS builder
+RUN apk add --no-cache git
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN go build -o eink-server main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o epaper-server .
 
-# --- Stage 2: Final Slim Runtime ---
-FROM python:3.10-slim-bookworm
-
-# Install required system rendering package (libraqm) and CA certificates
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libraqm-dev \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
+# Runtime stage
+FROM alpine:latest
+RUN apk add --no-cache tzdata ca-certificates
 WORKDIR /app
-
-# Install Python rendering packages globally inside the container
-RUN pip install --no-cache-dir pillow requests
-
-# Copy built server binary, layout generator, and static resources from builder stage
-COPY --from=builder /app/eink-server .
-COPY --from=builder /app/renderer.py .
-COPY --from=builder /app/static ./static
-
-# Expose HTTP port
+COPY --from=builder /app/epaper-server /app/epaper-server
+COPY static/ /app/static/
 EXPOSE 8080
-
-# Run server with configuration mapping
-CMD ["./eink-server", "-config", "config.yaml"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/healthz || exit 1
+ENTRYPOINT ["/app/epaper-server"]

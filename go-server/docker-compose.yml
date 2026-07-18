@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: epaper-dashboard-server
+    restart: unless-stopped
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    volumes:
+      - server-data:/app
+    environment:
+      - PORT=8080
+    depends_on:
+      - mqtt
+
+  mqtt:
+    image: eclipse-mosquitto:latest
+    container_name: epaper-mqtt-broker
+    restart: unless-stopped
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+    # Overwrite default entrypoint to allow anonymous outside connections without custom file
+    command: mosquitto -c /dev/null --listener 1883 --allow-anonymous true
+
+volumes:
+  server-data:
